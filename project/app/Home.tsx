@@ -1,7 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
-import { Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Image, Pressable } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+const testLogo = require('../../assets/image/logo.png');
+console.log('LOGO LOADED OK', testLogo);
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -13,8 +15,16 @@ export default function HomeScreen() {
     >
       <StatusBar style="light" />
 
+      {/* LOGO */}
+      <Image
+        source={require('../assets/image/logo.png')}
+        style={styles.logo}
+      />
+      
+      {/* TITLE */}
       <Text style={styles.title}>Welcome to PKR Arts</Text>
 
+      {/* START CHAT BUTTON */}
       <Pressable
         style={styles.button}
         onPress={() => router.push('/(tabs)/chat')}
@@ -30,36 +40,29 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
   },
-
-  title: {
-    color: '#EBD9FF',
-    fontSize: 30,
-    fontWeight: 'bold',
-    letterSpacing: 1,
+  logo: {
+    width: 120,
+    height: 120,
+    resizeMode: 'contain',
     marginBottom: 20,
-    textShadowColor: '#9D4EDD',
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12,
   },
-
-  button: {
-    backgroundColor: '#9D4EDD',
-    paddingHorizontal: 42,
-    paddingVertical: 14,
-    borderRadius: 32,
-    shadowColor: '#9D4EDD',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.6,
-    shadowRadius: 12,
-    elevation: 14,
-  },
-
-  buttonText: {
-    color: '#1A002E',
-    fontSize: 16,
+  title: {
+    color: '#B388FF',
+    fontSize: 24,
     fontWeight: 'bold',
-    letterSpacing: 0.5,
+    marginBottom: 15,
+  },
+  button: {
+    backgroundColor: '#7B2CBF',
+    paddingHorizontal: 35,
+    paddingVertical: 14,
+    borderRadius: 25,
+    marginTop: 20,
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
 });

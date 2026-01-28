@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "pkr-chatbot-app",
+    "name": "pkr chatbot app",
     "slug": "pkr-chatbot-app",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -38,7 +38,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
