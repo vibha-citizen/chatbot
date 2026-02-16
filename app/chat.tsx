@@ -25,8 +25,22 @@ export default function Chat() {
   ]);
 
   const [input, setInput] = useState("");
+
+  // 🔹 Intent word lists
+ const greetings = ["hi", "hello", "hey", "hai", "vanakkam"];
+ const thanksWords = ["thanks", "thank you", "thanku", "tnx", "thx"];
+ const appreciationWords = ["nice", "super", "good", "great", "awesome", "wow", "excellent", "amazing"];
+
   /* 🔥 BOT DATA */
-    const botData = {address: `🏫 PKR Arts College for Women
+    const botData = {
+      
+      botname: "I’m Noah❤️!",
+      
+      aboutbot: `I am Noah 🤖, designed to help students and parents with information about P.K.R. Arts College for Women. 
+I can provide details about courses, departments, faculty, placements, sports, hostel, library, and more.`,
+
+      
+      address: `🏫 PKR Arts College for Women
 📍 Address:
 P.B. No. 21, 127, Pariyur Road,
 Gobichettipalayam - 638 476,
@@ -95,7 +109,7 @@ Empowering rural women by inculcating the core values of truth and righteousness
 📚 Department of Commerce
 📚 Department of Management`,
 
-   tamil:`📚 Department of Tamil
+   tamildepartment:`📚 Department of Tamil
 
 ABOUT THE DEPARTMENT
 
@@ -127,7 +141,7 @@ Developing competent, ethical, moral, and socially responsible women through Tam
 MISSION
 To enhance the linguistic and professional competence of learners not only through teaching but also through practical exposure.`,
 
-english:`📘 Department of English
+englishdepartment:`📘 Department of English
 
 ABOUT THE DEPARTMENT
 
@@ -144,7 +158,7 @@ To empower rural women through English competency so that they will be able to c
 MISSION
 To enable rural women to be on par with their urban counterparts by imparting communicative and literary skills in English and helping them to function as effective bilinguals in society.`,
 
- maths: `📐 Department of Mathematics
+ mathsdepartment: `📐 Department of Mathematics
 
 ABOUT THE DEPARTMENT
 
@@ -164,7 +178,7 @@ Creating a congenial environment to learn mathematical designs and to use mathem
 MISSION
 To motivate students to upgrade their interest in contemporary mathematical techniques and to enable them to acquire the required knowledge to strengthen their analytical skills.`,
 
-  physics: `🔬 Department of Physics
+  physicsdepartment: `🔬 Department of Physics
 
 ABOUT THE DEPARTMENT
 
@@ -198,7 +212,7 @@ To become a centre of excellence in Physics by providing learning through experi
 MISSION
 To impart quality science-based education to rural women and empower them to become good scientists and committed individuals contributing to nation building.`,
 
-  computerscience:`💻 Department of Computer Science
+  computersciencedepartment:`💻 Department of Computer Science
 
 ABOUT THE DEPARTMENT
 
@@ -225,7 +239,7 @@ To create a genre of IT professionals equipped with a high degree of technical s
 MISSION
 To impart knowledge, skills, and ethics to the younger generation in a dynamic environment, enabling them to meet global challenges and enhance their competency.`,
 
-  commerce: `📊 Department of Commerce
+  commercedepartment: `📊 Department of Commerce
 
 ABOUT THE DEPARTMENT
 
@@ -260,7 +274,7 @@ To impart globally competent knowledge to Commerce graduates along with:
 • Ability to work in groups and lead teams when required  
 • Professional ethics, social responsibility, good habits, and a positive attitude`,
 
-  management: `📈 Department of Management
+  managementdepartment: `📈 Department of Management
 
 ABOUT THE DEPARTMENT
 
@@ -453,6 +467,79 @@ Ms. S. Sivaranjani – Physical Director`,
   • Tamil
   • Computer Science
   • English`,
+
+  TamilLiterature:`📗B.A Tamil Literature
+    B.A Tamil Literature focuses on Tamil language, literature, grammar, classical and modern works. It helps students build careers in teaching, writing, journalism, and research.`,
+
+  EnglishLiterature:`📕B.A English Literature
+    B.A English Literature deals with English poetry, drama, prose, and linguistics. It improves communication skills and prepares students for careers in teaching, media, and content writing.`,
+
+  ComputerScience:`🖥️B.Sc Computer Science
+    B.Sc Computer Science covers programming, data structures, databases, and software development. It prepares students for IT jobs and higher studies in computer-related fields.`,
+
+  InformationTechnology:`💻B.Sc Information Technology
+    B.Sc Information Technology focuses on networking, web development, databases, and system administration. It is suitable for careers in IT support and software services.`,
+    
+  AIML:`🤖B.Sc Artificial Intelligence & Machine Learning
+   B.Sc Artificial Intelligence & Machine Learning course focuses on AI concepts, machine learning algorithms, data science, and automation. It prepares students for careers in AI, data analytics, and intelligent systems.`,
+
+  CyberSecurity:`🔐B.Sc Cyber Security
+    B.Sc Cyber Security focuses on network security, ethical hacking, digital forensics, and cyber laws. It prepares students to protect systems and data from cyber threats.`,
+
+  BCA:`🖱️BCA
+    BCA focuses on computer applications, programming languages, and software development. It is ideal for students aiming for IT and software careers.`,
+
+  BCom:`💼B.Com
+    B.Com provides knowledge in accounting, finance, economics, and business law. It prepares students for careers in commerce and business sectors.`,
+
+  BComCA:`🧮Bachelor of Commerce (Computer Applications)
+    B.Com CA integrates commerce with computer applications. It is suitable for careers in accounting, finance, and IT-related business roles.`,
+
+  BComPA:`🧮Bachelor of Commerce (Professional Accounting)
+    "B.Com PA focuses on professional accounting, taxation, and auditing. It prepares students for accounting and finance careers.`,
+
+  BComIT:`🌐Bachelor of Commerce (Information Technology)
+    B.Com IT combines commerce subjects with information technology. It is useful for roles in IT-enabled business services.`,
+
+  BScPhysics:`🔬B.Sc Physics
+    B.Sc Physics focuses on classical and modern physics concepts, experiments, and analytical skills. It prepares students for research and technical careers.`,
+
+  BScMathematics:`📐B.Sc Mathematics
+    B.Sc Mathematics deals with algebra, calculus, statistics, and applied mathematics. It builds strong analytical and problem-solving skills.`,
+
+  BBA:`📑Bachelor of Business Administration
+    BBA focuses on management principles, marketing, finance, and human resources. It prepares students for business and management careers.`,
+
+  MATamil:`📚M.A Tamil Literature
+    M.A Tamil Literature provides advanced study of Tamil literature, criticism, and research. It is suitable for teaching and academic research careers.`,
+
+  MAEnglish:`📚M.A English Language & Literature
+    This course offers advanced knowledge in English literature, linguistics, and critical studies. It prepares students for teaching, research, and writing careers.`,
+
+  MCA:`👨‍💻Master of Computer Applications
+    MCA focuses on advanced computer applications, software development, and system design. It prepares students for high-level IT roles.`,
+
+  MCom:`📊M.Com
+    M.Com provides advanced knowledge in commerce, accounting, finance, and research. It prepares students for academic and professional careers.`,
+
+  MScPhysics:`🔮M.Sc Physics
+    M.Sc Physics focuses on advanced theoretical and experimental physics. It prepares students for research and technical professions.`,
+
+  MScMathematics:`📐M.Sc Mathematics
+    M.Sc Mathematics offers advanced mathematical concepts and research-oriented studies. It prepares students for teaching and research roles.`,
+
+  MBA:`🏦Master of Business Administration
+    MBA focuses on business management, leadership, finance, marketing, and strategy. It prepares students for managerial and corporate careers.`,
+
+  PGDCA:`👩‍🎓PGDCA
+    PGDCA is a diploma course focusing on computer applications, programming, and IT basics. It is ideal for quick entry into IT-related jobs.`,
+
+  MPhil:`🎓Master of Philosophy
+    M.Phil in Computer Science focuses on research methodologies and advanced computing concepts.`,
+
+  Phd:`📜Doctor of Philosophy
+      Ph.D (Full Time / Part Time) is the highest level research programme offered in Physics, Commerce, Management, Tamil, Computer Science, and English, focusing on original research and academic excellence.`,
+
 
   fees: {
       "ba tamil": "BA Tamil Fees → ₹15,000",
@@ -817,6 +904,8 @@ Afternoon → 01:15 PM – 04:00 PM
 
     if(input.trim() === "") return;
 
+    const userText =input.toLowerCase();
+
     const userMsg: Message = {
   id: Date.now(),
   text: input,
@@ -837,10 +926,30 @@ setMessages(prev => [...prev, userMsg]);
       .replace(/[^a-z0-9 ]/g, "");
       let botReply = "Sorry 😔 I didn't understand.";
 
-      if(userText.includes("hi") || userText.includes("hello")){
-        botReply = "Hello 👋 How can I help you?";
+      // 👋 Greetings
+      if (greetings.some(word => userText.includes(word))) {
+        botReply = "Hi 👋😊 How can I help you today?";
       }
-       
+
+      // 🙏 Thanks
+      else if (thanksWords.some(word => userText.includes(word))) {
+        botReply = "You're most welcome 🤗✨";
+      }
+
+      // 🌟 Appreciation
+      else if (appreciationWords.some(word => userText.includes(word))) {
+        botReply = "Thank you so much 🥰🌸 Happy to help!";
+      }
+
+      // User asks bot name
+else if (
+  userText.includes("your name") ||
+  userText.includes("Your name")||
+   userText.includes("Name")
+) {
+  botReply = botData.botname;
+}
+  
       else if(userText.includes("college details")||
               userText.includes("College Details")||
               userText.includes("College details")||
@@ -911,127 +1020,255 @@ setMessages(prev => [...prev, userMsg]);
         botReply = botData.mission;
       }
 
+      /* ================= COURSES ================= */
+
+      else if(userText.includes("batamil")||
+              userText.includes("ba tamil")
+      ){
+        botReply = botData.TamilLiterature;
+      }
+
+      else if(userText.includes("baenglish")||
+              userText.includes("ba english")
+      ){
+        botReply = botData.EnglishLiterature;
+      }
+
+      else if(userText.includes("bsc cs")||
+              userText.includes("bsccs")
+      ){
+        botReply = botData.ComputerScience;
+      }
+
+      else if(userText.includes("bsc it")||
+              userText.includes("bscit")
+      ){
+        botReply = botData.InformationTechnology;
+      }
+
+      else if(userText.includes("ai ml")||
+              userText.includes("bsc ai ml")||
+              userText.includes("bsc aiml")||
+              userText.includes("ai&ml")||
+              userText.includes("bsc ai&ml")||
+              userText.includes("Bsc aiml")
+      ){
+        botReply = botData.AIML;
+      }
+
+      else if(userText.includes("bsc cyber security")||
+              userText.includes("bsccybersecurity")||
+              userText.includes("cyber security")||
+              userText.includes("cybersecurity")
+      ){
+        botReply = botData.CyberSecurity;
+      }
+
+      else if(userText.includes("bca")||
+              userText.includes("bachelor of computer application")||
+              userText.includes("BCA")
+      ){
+        botReply = botData.BCA;
+      }
+
+      else if(userText.includes("bcom ca")||
+              userText.includes("b com ca")||
+              userText.includes("bachelor of commerce (computer application)")
+      ){
+        botReply = botData.BComCA;
+      }
+
+      else if (
+  userText.includes("bcom pa") ||
+  userText.includes("b com pa") ||
+  userText.includes("professional accounting")
+) {
+  botReply = botData.BComPA;
+}
+
+else if (
+  userText.includes("bcom it") ||
+  userText.includes("b com it") ||
+  userText.includes("commerce it")
+) {
+  botReply = botData.BComIT;
+}
+
+else if(userText.includes("bcom")||
+              userText.includes("b com")||
+              userText.includes("bachelor of commerce")
+      ){
+        botReply = botData.BCom;
+      }
+
+else if (
+  userText.includes("bscphysics")||
+  userText.includes("bsc physics") ||
+  userText.includes("b.sc physics")
+) {
+  botReply = botData.BScPhysics;
+}
+
+else if (
+  userText.includes("bsc mathematics") ||
+  userText.includes("bsc maths") ||
+  userText.includes("b.sc maths")||
+  userText.includes("bscmaths")
+) {
+  botReply = botData.BScMathematics;
+}
+
+else if (
+  userText.includes("bba") ||
+  userText.includes("bachelor of business administration")
+) {
+  botReply = botData.BBA;
+}
+
+else if (
+  userText.includes("ma tamil") ||
+  userText.includes("master of tamil")
+) {
+  botReply = botData.MATamil;
+}
+
+else if (
+  userText.includes("ma english") ||
+  userText.includes("master of english")
+) {
+  botReply = botData.MAEnglish;
+}
+
+else if (
+  userText.includes("mca") ||
+  userText.includes("master of computer applications")
+) {
+  botReply = botData.MCA;
+}
+
+else if (
+  userText.includes("mcom") ||
+  userText.includes("m com") ||
+  userText.includes("master of commerce")
+) {
+  botReply = botData.MCom;
+}
+
+else if (
+  userText.includes("msc physics") ||
+  userText.includes("m sc physics")
+) {
+  botReply = botData.MScPhysics;
+}
+
+else if (
+  userText.includes("msc mathematics") ||
+  userText.includes("msc maths") ||
+  userText.includes("m sc mathematics")
+) {
+  botReply = botData.MScMathematics;
+}
+
+else if (
+  userText.includes("mba") ||
+  userText.includes("master of business administration")
+) {
+  botReply = botData.MBA;
+}
+
+else if (
+  userText.includes("pgdca")
+) {
+  botReply = botData.PGDCA;
+}
+
+else if (
+  userText.includes("mphil") ||
+  userText.includes("m.phil")
+) {
+  botReply = botData.MPhil;
+}
+
+else if (
+  userText.includes("phd") ||
+  userText.includes("ph.d") ||
+  userText.includes("doctor of philosophy")
+) {
+  botReply = botData.Phd;
+}
+
+
       /* ================= DEPARTMENTS ================= */
 
 // Tamil
 else if (
-  userText.includes("tamil") ||
-  userText.includes("Tamil") ||
-  userText.includes("Tamil department")||
   userText.includes("tamil department")||
-  userText.includes("Tamildepartment")||
   userText.includes("tamildepartment")||
-  userText.includes("department of tamil")||
-  userText.includes("Department of tamil")
+  userText.includes("department of tamil")
 ) {
-  botReply = botData.tamil;
+  botReply = botData.tamildepartment;
 }
 
 // English
 else if (
-   userText.includes("english") ||
-  userText.includes("English") ||
-  userText.includes("English department")||
   userText.includes("english department")||
-  userText.includes("Englishdepartment")||
   userText.includes("englishdepartment")||
   userText.includes("department of english")||
-  userText.includes("Department of english")||
   userText.includes("eng department")
 ) {
-  botReply = botData.english;
+  botReply = botData.englishdepartment;
 }
 
 // Mathematics
 else if (
-  userText.includes("Maths") ||
-  userText.includes("maths") ||
-  userText.includes("Maths department")||
   userText.includes("maths department")||
-  userText.includes("Mathsdepartment")||
   userText.includes("mathsdepartment")||
   userText.includes("department of maths")||
-  userText.includes("Department of Maths")||
-  userText.includes("Mathematics") ||
-  userText.includes("mathematics") ||
-  userText.includes("Mathematics department")||
   userText.includes("mathematics department")||
-  userText.includes("Mathematicsdepartment")||
   userText.includes("mathematicsdepartment")||
-  userText.includes("department of mathematics")||
-  userText.includes("Department of Mathematics")
+  userText.includes("department of mathematics")
 ) {
-  botReply = botData.maths;
+  botReply = botData.mathsdepartment;
 }
 
 // Physics
 else if (
-  userText.includes("Physics") ||
-  userText.includes("physics") ||
-  userText.includes("Physics department")||
   userText.includes("physics department")||
-  userText.includes("Physicsdepartment")||
   userText.includes("physicsdepartment")||
-  userText.includes("department of physics")||
-  userText.includes("Department of physics")
+  userText.includes("department of physics")
 ) {
-  botReply = botData.physics;
+  botReply = botData.physicsdepartment;
 }
 
 // Computer Science
 else if (
-  userText.includes("Computer science") ||
-  userText.includes("computer science") ||
-  userText.includes("Computer science department")||
   userText.includes("computer science department")||
-  userText.includes("Computerscience department")||
   userText.includes("computerscience department")||
   userText.includes("department of computer science")||
-  userText.includes("Department of computer science")||
   userText.includes("department of computerscience")||
-  userText.includes("Department of computerscience")||
-  userText.includes("Cs") ||
-  userText.includes("cs") ||
-  userText.includes("CS") ||
-  userText.includes("CS department")||
   userText.includes("cs department")||
-  userText.includes("Cs department") ||
-  userText.includes("department of cs")||
-  userText.includes("department of CS")||
-  userText.includes("department of Cs")||
-  userText.includes("Department of Cs")||
-  userText.includes("Department of cs")||
-  userText.includes("Department of CS")
+  userText.includes("csdepartment")||
+  userText.includes("department of cs")
 ) {
-  botReply = botData.computerscience;
+  botReply = botData.computersciencedepartment;
 }
 
 // Commerce
 else if (
-  userText.includes("commerce") ||
-  userText.includes("Commerce") ||
   userText.includes("department of commerce")||
-  userText.includes("Department of commerce")||
-  userText.includes("Commerce department")||
   userText.includes("commerce department")||
-  userText.includes("Commercedepartment")||
   userText.includes("commercedepartment")
 ) {
-  botReply = botData.commerce;
+  botReply = botData.commercedepartment;
 }
 
 // Management
 else if (
-  userText.includes("management") ||
-  userText.includes("Management") ||
   userText.includes("department of management")||
-  userText.includes("Department of management")||
-  userText.includes("Management department")||
   userText.includes("management department")||
-  userText.includes("Managementdepartment")||
   userText.includes("managementdepartment")
 ) {
-  botReply = botData.management;
+  botReply = botData.managementdepartment;
 }
 
 else if(
@@ -1050,6 +1287,10 @@ else if(
         userText.includes("department staff")
       ){
         botReply = botData.faculty;
+      }
+
+      else if(userText.includes("course")){
+        botReply = botData.courses;
       }
 
       else if(userText.includes("course")){
@@ -1542,7 +1783,18 @@ Badminton`,
   return;
 }
 
-      else if(
+else if (
+  userText.includes("about you") ||
+  userText.includes("who are you") ||
+  userText.includes("your info") ||
+  userText.includes("About you")||
+  userText.includes("Who are you")||
+  userText.includes("Your info")
+) {
+  botReply = botData.aboutbot;
+}
+
+else if(
         userText.includes("fees") ||
         userText.includes("fee") ||
         userText.includes("structure")
@@ -1568,7 +1820,7 @@ Badminton`,
       const botMsg: Message = {
   id: Date.now() + 1,
   text: botReply,
-  sender: "bot"
+  sender: "bot",
 };
 
 setMessages(prev => [...prev, botMsg]);

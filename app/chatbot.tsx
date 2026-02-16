@@ -46,21 +46,30 @@ export default function Chatbot() {
       {/* Quick Actions */}
       <Text style={styles.quick}>Quick Actions</Text>
       <View style={styles.grid}>
-        <TouchableOpacity style={[styles.box, { backgroundColor: '#FDE7FF' }]} onPress={() => openChat("Admissions details")}>
-          <Text style={styles.boxText}>Admissions</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+  style={[styles.box, { backgroundColor: '#FDE7FF' }]}
+  onPress={() => router.push("/admission")} >
+  <Text style={styles.boxText}>Enroll</Text>
+</TouchableOpacity>
 
-        <TouchableOpacity style={[styles.box, { backgroundColor: '#E0F7FF' }]} onPress={() => openChat("Courses available")}>
-          <Text style={styles.boxText}>Courses</Text>
-        </TouchableOpacity>
+<TouchableOpacity
+  style={[styles.box, { backgroundColor: '#E0F7FF' }]}
+  onPress={() => router.push("/clicknest")}  //
+>
+  <Text style={styles.boxText}>ClickNest</Text>
+</TouchableOpacity>
+
 
         <TouchableOpacity style={[styles.box, { backgroundColor: '#FFF4E0' }]} onPress={() => openChat("College location")}>
-          <Text style={styles.boxText}>Location</Text>
+          <Text style={styles.boxText}>PathWay</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.box, { backgroundColor: '#E8FFEA' }]} onPress={() => openChat("Sports facilities")}>
-          <Text style={styles.boxText}>Sports</Text>
-        </TouchableOpacity>
+        <TouchableOpacity
+        style={[styles.box, { backgroundColor: '#E8FFEA' }]}
+        onPress={() => router.push("/clicknest/sports")}>
+          <Text style={styles.boxText}>GameZone</Text>
+          </TouchableOpacity>
+
       </View>
     </ScrollView>
   );
