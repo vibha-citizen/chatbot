@@ -1,37 +1,35 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 
-export default function SportsList() {
+export default function SportsIndex() {
   const router = useRouter();
 
-  // Outdoor + Indoor Sports
+  // Sports list with route names (file names)
   const sports = [
-    "Kabaddi",
-    "Volleyball",
-    "Hockey",
-    "Handball",
-    "Football",
-    "Powerlifting",
-    "Weightlifting",
-    "Carrom",
-    "Table Tennis",
-    "Chess",
-    "Shuttle",
-    "Badminton",
+    { name: "Kabaddi", route: "kabaddi" },
+    { name: "Volleyball", route: "volleyball" },
+    { name: "Hockey", route: "hockey" },
+    { name: "Handball", route: "handball" },
+    { name: "Football", route: "football" },
+    { name: "Badminton", route: "badminton" },
   ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 30 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 30 }}
+    >
       <Text style={styles.title}>🏆 Sports</Text>
       <Text style={styles.subTitle}>Click on a sport to see details</Text>
 
-      {sports.map((sport, i) => (
+      {sports.map((sport, index) => (
         <TouchableOpacity
-          key={i}
+          key={index}
           style={styles.card}
-          onPress={() => router.push(`/clicknest/sports/sport`)}
+          onPress={() => router.push(`/clicknest/sports/${sport.route}`as any)}
+          activeOpacity={0.8}
         >
-          <Text style={styles.cardText}>{sport}</Text>
+          <Text style={styles.cardText}>{sport.name}</Text>
         </TouchableOpacity>
       ))}
     </ScrollView>
@@ -39,12 +37,27 @@ export default function SportsList() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9F9FF", padding: 20 },
-  title: { fontSize: 26, fontWeight: "900", color: "#5A1AFF", marginBottom: 5, textAlign: "center" },
-  subTitle: { fontSize: 16, color: "#666", textAlign: "center", marginBottom: 20 },
+  container: {
+    flex: 1,
+    backgroundColor: "#F9F9FF",
+    padding: 20,
+  },
+  title: {
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#5A1AFF",
+    marginBottom: 6,
+    textAlign: "center",
+  },
+  subTitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
   card: {
     backgroundColor: "#F3E8FF",
-    paddingVertical: 20,
+    paddingVertical: 18,
     paddingHorizontal: 15,
     borderRadius: 15,
     marginBottom: 15,
@@ -52,6 +65,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.25,
     shadowRadius: 4,
+    elevation: 3,
   },
-  cardText: { fontSize: 18, fontWeight: "700", color: "#5A1AFF", textAlign: "center" },
+  cardText: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#5A1AFF",
+    textAlign: "center",
+  },
 });

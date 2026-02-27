@@ -29,7 +29,7 @@ export default function ClickNest() {
 
         <TouchableOpacity
           style={styles.card}
-          onPress={() => router.push("/clicknest/department")}
+          onPress={() => router.push("/clicknest/departments")}
         >
           <Text style={styles.cardText}>🎭 Department Activities</Text>
         </TouchableOpacity>

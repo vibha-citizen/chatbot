@@ -941,15 +941,24 @@ setMessages(prev => [...prev, userMsg]);
         botReply = "Thank you so much 🥰🌸 Happy to help!";
       }
 
-      // User asks bot name
-else if (
-  userText.includes("your name") ||
-  userText.includes("Your name")||
-   userText.includes("Name")
-) {
-  botReply = botData.botname;
+      else if(
+  userText.includes("name") ||
+  userText.includes("bot name") ||
+  userText.includes("your name")
+){
+  setMessages(prev => [
+    ...prev,
+    {
+      id: Date.now(),
+      sender: "bot",
+      text: "My name is Noah ❤️",
+      images:[
+        require("../assets/images/noah.jpeg")
+      ]
+    }
+  ]);
+  return;
 }
-  
       else if(userText.includes("college details")||
               userText.includes("College Details")||
               userText.includes("College details")||
@@ -1741,10 +1750,8 @@ Weightlifting`,
   userText.includes("indoor")||
   userText.includes("indoor games")||
   userText.includes("indoor sports")||
-  userText.includes("Indoor sports")||
-  userText.includes("Indoor Games")||
-  userText.includes("Indoorsports")||
- userText.includes("Indoorgames")
+  userText.includes("indoorgames")||
+  userText.includes("indoorsports")
 ){
   setMessages(prev => [
     ...prev,
@@ -1782,7 +1789,6 @@ Badminton`,
   ]);
   return;
 }
-
 else if (
   userText.includes("about you") ||
   userText.includes("who are you") ||
@@ -1887,7 +1893,6 @@ setMessages(prev => [...prev, botMsg]);
     </View>
   )}
 />
-
         <View style={styles.inputContainer}>
           <TextInput
             value={input}
