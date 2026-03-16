@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, ScrollView, Image } from "react-native";
+import { Text, StyleSheet, ScrollView, Image, View } from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
 
-export default function FootballImages() {
+export default function ScreenImages() {
   const images = [
     require("../../../../assets/images/footbal.png"),
     require("../../../../assets/images/football1.jpeg"),
@@ -8,38 +9,41 @@ export default function FootballImages() {
   ];
 
   return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.title}>🏆 Football Images</Text>
+    <LinearGradient colors={["#FBF5FF", "#F2E9FF", "#EADDFF"]} style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Text style={styles.title}>Football Images</Text>
 
-      {images.map((img, index) => (
-        <Image
-          key={index}
-          source={img}
-          style={styles.image}
-          resizeMode="cover"
-        />
-      ))}
-    </ScrollView>
+        {images.map((img, index) => (
+          <View key={index} style={styles.imageCard}>
+            <Image source={img} style={styles.image} resizeMode="cover" />
+          </View>
+        ))}
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F9F5FF",
-    padding: 16,
-  },
+  container: { flex: 1 },
+  scroll: { padding: 16, paddingBottom: 24 },
   title: {
-    fontSize: 24,
-    fontWeight: "800",
-    color: "#5A1AFF",
+    fontSize: 26,
+    fontWeight: "900",
+    color: "#4D1F9A",
     textAlign: "center",
-    marginBottom: 20,
+    marginBottom: 16,
+  },
+  imageCard: {
+    backgroundColor: "rgba(255,255,255,0.82)",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(145,95,255,0.2)",
+    padding: 8,
+    marginBottom: 12,
   },
   image: {
     width: "100%",
     height: 220,
-    borderRadius: 16,
-    marginBottom: 16,
+    borderRadius: 12,
   },
 });

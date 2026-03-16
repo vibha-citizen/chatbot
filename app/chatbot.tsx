@@ -5,10 +5,13 @@ import { useRouter } from 'expo-router';
 export default function Chatbot() {
   const router = useRouter();
 
-  const openChat = (topic: string) => {
+  const openChat = (topic: string, openMap?: boolean) => {
     router.push({
       pathname: "/chat",
-      params: { question: topic }
+      params: {
+        question: topic,
+        ...(openMap ? { openMap: "1" } : {}),
+      },
     });
   };
 
@@ -60,7 +63,10 @@ export default function Chatbot() {
 </TouchableOpacity>
 
 
-        <TouchableOpacity style={[styles.box, { backgroundColor: '#FFF4E0' }]} onPress={() => openChat("College location")}>
+        <TouchableOpacity
+          style={[styles.box, { backgroundColor: '#FFF4E0' }]}
+          onPress={() => openChat("College location", true)}
+        >
           <Text style={styles.boxText}>PathWay</Text>
         </TouchableOpacity>
 

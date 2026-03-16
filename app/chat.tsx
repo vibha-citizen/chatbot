@@ -8,9 +8,390 @@ import {
   KeyboardAvoidingView,
   Platform,
   Image,
-  Linking
+  Linking,
+  AppState
 } from "react-native";
-import { useState } from "react";
+import { Audio } from "expo-av";
+import * as Speech from "expo-speech";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons } from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
+import { useLocalSearchParams } from "expo-router";
+
+const removeEmojis = (text: string) => {
+  return text.replace(
+    /([\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDDFF])/g,
+    ""
+  );
+};
+
+type AppLanguage = "en" | "ta";
+
+const DEFAULT_ENGLISH_FALLBACK = "Sorry, I didn't understand.";
+const DEFAULT_TAMIL_FALLBACK = "மன்னிக்கவும், புரியவில்லை.";
+const NO_INFO_ENGLISH = "I don't have that information in the college data.";
+const NO_INFO_TAMIL = "இந்தக் கல்லூரி தரவுகளில் அந்த தகவல் இல்லை.";
+
+const detectInputLanguage = (text: string): AppLanguage => {
+  return /[\u0B80-\u0BFF]/.test(text) ? "ta" : "en";
+};
+
+const buildModelSystemPrompt = (lang: AppLanguage): string => {
+  if (lang === "ta") {
+    return `நீங்கள் குரல் அடிப்படையிலான AI உதவியாளர்.
+
+பயனர் தமிழ் அல்லது ஆங்கிலத்தில் கேள்வி கேட்கலாம்.
+பதில் எப்போதும் தமிழில் மட்டும் இருக்க வேண்டும்.
+பதில் மரியாதையாக, இயல்பாக, சுருக்கமாக இருக்க வேண்டும்.
+கீழே வழங்கப்பட்ட Context உள்ள தகவல்களை மட்டும் பயன்படுத்த வேண்டும்.
+Context-ல் இல்லாத தகவலை சேர்க்க வேண்டாம்.`;
+  }
+
+  return `You are a voice-based AI assistant.
+
+The user may give input in English or Tamil.
+Respond in English only.
+Keep replies polite, natural, and concise.
+Use only the facts from the provided Context.
+Do not add information that is not in the Context.`;
+};
+
+type RagSection = {
+  key: string;
+  text: string;
+};
+
+const normalizeForRag = (value: string): string =>
+  value
+    .toLowerCase()
+    .replace(/[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDD00-\uDDFF]/g, "")
+    .replace(/[^a-z0-9\u0B80-\u0BFF ]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const tokenizeForRag = (value: string): string[] => {
+  const norm = normalizeForRag(value);
+  if (!norm) return [];
+  return norm.split(" ").filter(Boolean);
+};
+
+const buildRagSections = (data: Record<string, any>): RagSection[] => {
+  const sections: RagSection[] = [];
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (typeof value === "string") {
+      sections.push({ key, text: value });
+      return;
+    }
+
+    if (Array.isArray(value)) {
+      const joined = value.map(item => String(item)).join("\n");
+      if (joined.trim()) sections.push({ key, text: joined });
+      return;
+    }
+
+    if (value && typeof value === "object") {
+      const nestedText = Object.entries(value)
+        .map(([nestedKey, nestedValue]) => {
+          if (typeof nestedValue === "string") {
+            return `${nestedKey}: ${nestedValue}`;
+          }
+          if (Array.isArray(nestedValue)) {
+            return `${nestedKey}: ${nestedValue.map(item => String(item)).join(", ")}`;
+          }
+          return "";
+        })
+        .filter(Boolean)
+        .join("\n");
+
+      if (nestedText.trim()) sections.push({ key, text: nestedText });
+      return;
+    }
+  });
+
+  return sections;
+};
+
+const getRagContext = (question: string, sections: RagSection[]): string => {
+  const queryTokens = tokenizeForRag(question);
+  if (!queryTokens.length) return "";
+
+  const scored = sections
+    .map(section => {
+      const sectionTokens = tokenizeForRag(section.text);
+      if (!sectionTokens.length) return { section, score: 0 };
+      const sectionSet = new Set(sectionTokens);
+      let score = 0;
+      for (const token of queryTokens) {
+        if (sectionSet.has(token)) score += 1;
+      }
+      return { section, score };
+    })
+    .filter(item => item.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 3);
+
+  if (!scored.length) return "";
+
+  return scored
+    .map(item => `### ${item.section.key}\n${item.section.text}`)
+    .join("\n\n")
+    .slice(0, 2000);
+};
+
+const getSpaceBaseUrl = (): string | null => {
+  const apiUrl = process.env.EXPO_PUBLIC_HF_SPACE_API_URL;
+  if (!apiUrl) return null;
+  try {
+    const url = new URL(apiUrl);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return null;
+  }
+};
+
+const toAbsoluteUrl = (value: string): string => {
+  if (/^https?:\/\//i.test(value) || value.startsWith("data:audio/")) return value;
+  const base = getSpaceBaseUrl();
+  if (!base) return value;
+  if (value.startsWith("/")) return `${base}${value}`;
+  return `${base}/${value}`;
+};
+
+const looksLikeAudioRef = (value: string): boolean => {
+  const v = value.toLowerCase();
+  return (
+    v.startsWith("data:audio/") ||
+    v.includes(".mp3") ||
+    v.includes(".wav") ||
+    v.includes(".m4a") ||
+    v.includes(".aac") ||
+    v.includes(".ogg") ||
+    v.includes("/file=") ||
+    v.includes("/audio")
+  );
+};
+
+const extractAudioUri = (responseData: any): string | null => {
+  const items = Array.isArray(responseData?.data) ? responseData.data : [];
+
+  for (const item of items) {
+    if (typeof item === "string" && looksLikeAudioRef(item)) {
+      return toAbsoluteUrl(item);
+    }
+
+    if (item && typeof item === "object") {
+      const candidate =
+        typeof item.url === "string"
+          ? item.url
+          : typeof item.path === "string"
+          ? item.path
+          : typeof item.name === "string"
+          ? item.name
+          : null;
+
+      if (candidate && looksLikeAudioRef(candidate)) {
+        return toAbsoluteUrl(candidate);
+      }
+    }
+  }
+
+  return null;
+};
+
+const extractModelText = (responseData: any): string | null => {
+  const directText = typeof responseData === "string" ? responseData.trim() : null;
+  if (directText) return directText;
+
+  if (Array.isArray(responseData?.data)) {
+    for (const item of responseData.data) {
+      if (typeof item === "string" && item.trim()) {
+        return item.trim();
+      }
+    }
+  }
+
+  return null;
+};
+
+const fetchModelReply = async (
+  userInput: string,
+  language: AppLanguage,
+  context: string
+): Promise<{ text: string; audioUri: string | null }> => {
+  const apiUrl = process.env.EXPO_PUBLIC_HF_SPACE_API_URL;
+  const fallbackText =
+    language === "ta" ? DEFAULT_TAMIL_FALLBACK : DEFAULT_ENGLISH_FALLBACK;
+  const noInfoText =
+    language === "ta" ? NO_INFO_TAMIL : NO_INFO_ENGLISH;
+  if (!apiUrl) {
+    return { text: fallbackText, audioUri: null };
+  }
+
+  try {
+    const token = process.env.EXPO_PUBLIC_HF_TOKEN;
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        data: [
+          `${buildModelSystemPrompt(language)}\n\nContext:\n${context}\n\nUser question: ${userInput}\n\nIf the answer is not in the Context, reply with: ${noInfoText}`
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      return { text: fallbackText, audioUri: null };
+    }
+    const json = await response.json();
+    return {
+      text: extractModelText(json) ?? fallbackText,
+      audioUri: extractAudioUri(json),
+    };
+  } catch {
+    return { text: fallbackText, audioUri: null };
+  }
+};
+
+const playModelAudio = async (
+  uri: string,
+  activeSoundRef: React.MutableRefObject<Audio.Sound | null>
+) => {
+  try {
+    if (activeSoundRef.current) {
+      await activeSoundRef.current.unloadAsync();
+      activeSoundRef.current = null;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri },
+      { shouldPlay: true }
+    );
+    activeSoundRef.current = sound;
+  } catch {
+    // Ignore backend audio playback errors.
+  }
+};
+
+const getAudioContentType = (audioUri: string): string => {
+  const lower = audioUri.toLowerCase();
+  if (lower.endsWith(".wav")) return "audio/wav";
+  if (lower.endsWith(".mp3")) return "audio/mpeg";
+  if (lower.endsWith(".ogg")) return "audio/ogg";
+  if (lower.endsWith(".m4a")) return "audio/m4a";
+  if (lower.endsWith(".caf")) return "audio/x-m4a";
+  if (lower.endsWith(".webm")) return "audio/webm";
+  if (lower.endsWith(".aac")) return "audio/aac";
+  // Whisper recordings from Expo are commonly m4a/caf on mobile.
+  return "audio/m4a";
+};
+
+const parseAsrText = (raw: string): string | null => {
+  if (!raw) return null;
+
+  try {
+    const json = JSON.parse(raw);
+
+    if (typeof json?.text === "string" && json.text.trim()) {
+      return json.text.trim();
+    }
+
+    if (typeof json?.generated_text === "string" && json.generated_text.trim()) {
+      return json.generated_text.trim();
+    }
+
+    if (typeof json?.transcription === "string" && json.transcription.trim()) {
+      return json.transcription.trim();
+    }
+
+    if (typeof json?.result === "string" && json.result.trim()) {
+      return json.result.trim();
+    }
+
+    if (typeof json?.output?.text === "string" && json.output.text.trim()) {
+      return json.output.text.trim();
+    }
+
+    if (Array.isArray(json) && json.length > 0) {
+      const first = json[0];
+      if (typeof first?.text === "string" && first.text.trim()) return first.text.trim();
+      if (typeof first?.generated_text === "string" && first.generated_text.trim()) {
+        return first.generated_text.trim();
+      }
+      if (typeof first?.transcription === "string" && first.transcription.trim()) {
+        return first.transcription.trim();
+      }
+    }
+  } catch {
+    // Some endpoints can return plain text.
+    if (raw.trim()) return raw.trim();
+  }
+
+  return null;
+};
+
+type AsrResult = {
+  text: string | null;
+  error?: string;
+};
+
+const transcribeAudioWithHF = async (audioUri: string): Promise<AsrResult> => {
+  const asrApiUrl = process.env.EXPO_PUBLIC_HF_ASR_API_URL;
+  if (!asrApiUrl) return { text: null, error: "ASR URL missing" };
+
+  try {
+    const token = process.env.EXPO_PUBLIC_HF_TOKEN;
+    const contentType = getAudioContentType(audioUri);
+    const audioFileResponse = await fetch(audioUri);
+    const audioBlob = await audioFileResponse.blob();
+
+    const firstResponse = await fetch(asrApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": contentType,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: audioBlob,
+    });
+
+    const firstRaw = await firstResponse.text();
+    if (firstResponse.ok) {
+      const firstText = parseAsrText(firstRaw);
+      if (firstText) return { text: firstText };
+    }
+
+    // Retry once with same endpoint (some ASR pipelines reject extra params).
+    const retryResponse = await fetch(asrApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": contentType,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: audioBlob,
+    });
+
+    const retryRaw = await retryResponse.text();
+    if (!retryResponse.ok) {
+      return {
+        text: null,
+        error: `ASR failed (${retryResponse.status}). ${retryRaw || firstRaw || "No response body"}`,
+      };
+    }
+
+    const retryText = parseAsrText(retryRaw);
+    if (retryText) return { text: retryText };
+
+    return {
+      text: null,
+      error: `ASR returned empty text. First: ${firstRaw || "empty"} | Retry: ${retryRaw || "empty"}`,
+    };
+  } catch {
+    return { text: null, error: "ASR request exception on device" };
+  }
+};
 
 type Message = {
   id: number;
@@ -19,12 +400,106 @@ type Message = {
   images?: any[]; // 🔥 optional image
 };
 export default function Chat() {
+  const { question, openMap } = useLocalSearchParams<{
+    question?: string;
+    openMap?: string;
+  }>();
 
   const [messages, setMessages] = useState<Message[]>([
     { id: 1, text: "Hi! Welcome to PKR 👋", sender: "bot" }
   ]);
 
   const [input, setInput] = useState("");
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const activeSoundRef = useRef<Audio.Sound | null>(null);
+  const recordingRef = useRef<Audio.Recording | null>(null);
+  const skipNextAutoSpeakRef = useRef(false);
+  const hasMountedRef = useRef(false);
+  const autoActionRef = useRef(false);
+  const ragSectionsRef = useRef<RagSection[] | null>(null);
+
+  const speakText = (text: string, language: AppLanguage = "en") => {
+    if (!text) return;
+
+    const cleanText = removeEmojis(text);
+    const speechLanguage = language === "ta" ? "ta-IN" : "en-US";
+    
+  try {
+    Speech.stop();
+    Speech.speak(cleanText, {
+      language: speechLanguage,
+      rate: 0.95,
+      pitch: 1.0,
+    });
+  } catch (e) {
+    console.log("TTS error", e);
+  }
+};
+
+  useEffect(() => {
+    return () => {
+      Speech.stop();
+      if (activeSoundRef.current) {
+        activeSoundRef.current.stopAsync().catch(() => {});
+        activeSoundRef.current.unloadAsync().catch(() => {});
+        activeSoundRef.current = null;
+      }
+      if (recordingRef.current) {
+        recordingRef.current.stopAndUnloadAsync().catch(() => {});
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", state => {
+      if (state !== "active") {
+        Speech.stop();
+        if (activeSoundRef.current) {
+          activeSoundRef.current.stopAsync().catch(() => {});
+          activeSoundRef.current.unloadAsync().catch(() => {});
+          activeSoundRef.current = null;
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  useEffect(() => {
+    if (autoActionRef.current) return;
+    if (!question) return;
+
+    const trimmed = String(question).trim();
+    if (!trimmed) return;
+
+    autoActionRef.current = true;
+    sendMessage(trimmed);
+
+    if (openMap === "1") {
+      setTimeout(() => {
+        Linking.openURL(
+          "https://www.google.com/maps/search/?api=1&query=PKR+Arts+College+for+Women+Gobichettipalayam"
+        ).catch(() => {});
+      }, 600);
+    }
+  }, [question, openMap]);
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    const lastMessage = messages[messages.length - 1];
+    if (!lastMessage || lastMessage.sender !== "bot") return;
+
+    if (skipNextAutoSpeakRef.current) {
+      skipNextAutoSpeakRef.current = false;
+      return;
+    }
+
+    speakText(lastMessage.text, detectInputLanguage(lastMessage.text));
+  }, [messages]);
 
   // 🔹 Intent word lists
  const greetings = ["hi", "hello", "hey", "hai", "vanakkam"];
@@ -36,10 +511,9 @@ export default function Chat() {
       
       botname: "I’m Noah❤️!",
       
-      aboutbot: `I am Noah 🤖, designed to help students and parents with information about P.K.R. Arts College for Women. 
+      aboutbot: `I am Noah 🤖, designed to help students and parents with information about P.K.R.Arts College for Women. 
 I can provide details about courses, departments, faculty, placements, sports, hostel, library, and more.`,
 
-      
       address: `🏫 PKR Arts College for Women
 📍 Address:
 P.B. No. 21, 127, Pariyur Road,
@@ -55,10 +529,9 @@ pkroffice@gmail.com
 
 🗺️ Tap below to open in Google Maps`,
 
-
  collegedetails: `🏫 COLLEGE DETAILS
 
-Name : P.K.R. Arts College for Women
+Name : P.K.R.Arts College for Women
 Established : 1994
 Managed By : Dhandapani Rural Charitable Trust
 Visionary : Late Thiru P.R. Natarajan
@@ -70,33 +543,38 @@ NAAC Grade : A`,
 
   aboutcollege: `🏫 ABOUT
   
-Welcome to P.K.R. Arts College for Women!
-P.K.R. Arts College for Women, affiliated to Bharathiar University is an unaided Autonomous Arts and Science college. It had been founded with a vision to empower rural women and has been managed by Dhandapani Rural Charitable Trust since 1994.
+Welcome to P.K.R.Arts College for Women!
+P.K.R.Arts College for Women, affiliated to Bharathiar University is an unaided Autonomous Arts and Science college. It had been founded with a vision to empower rural women and has been managed by Dhandapani Rural Charitable Trust since 1994.
 The college is located in a beautiful locale, surrounded by hillocks and green fields providing a serene and pleasant atmosphere for learning.
 The college is dedicated to the everlasting memory of late Thiru. Kalimudhaliar, who had the noble vision of educating the masses.
 Unfortunately, he was not able to realise his dream during his lifetime and the responsibility passed on to his grandson, late Thiru P.R. Natarajan, founder Correspondent of this college.
 Inspired by his grandfather’s ideals, he dedicated his life to enlighten rural women by starting a women’s college in the name of his father Late Thiru P.K. Ramasamy.
 Thus this college was born from a consistent effort to realise the vision of Late Thiru Kalimudhaliar and was christened as P.K.R. Arts College for Women.`,
-  
-collegeinfo: `🏫 COLLEGE DETAILS
 
-Name : P.K.R. Arts College for Women
-Established : 1994
-Managed By : Dhandapani Rural Charitable Trust
-Visionary : Late Thiru P.R. Natarajan
-Named After : Late Thiru P.K. Ramasamy
-Location : Gobichettipalayam, Erode, Tamil Nadu
-Affiliation : Bharathiar University
-Autonomous : 2017
-NAAC Grade : A`,
-
-vision: `🌟 PKR College Vision
+  vision: `🌟 PKR College Vision
 
 To make a centre for excellence in higher education by imparting value-based quality education to rural women, to empower and make them economically independent, and socially committed to the task of building a strong nation.`,
 
   mission: `🎯 PKR College Mission
 
 Empowering rural women by inculcating the core values of truth and righteousness and by ensuring quality in the teaching-learning process along with co-curricular and extra-curricular activities for their economic independence, social commitment and national development.`,
+
+  secretaryCorrespondent: `🏛️ Secretary and Correspondent
+
+Thiru. P.N.Venkatachalam is the Secretary and Correspondent of P.K.R. Arts College for Women, Gobichettipalayam.
+He manages the institution, which was founded in 1994 by the Dhandapani Rural Charitable Trust to empower rural women through education.
+The institution focuses on the values of truth, righteousness, and academic excellence.`,
+
+  vicePrincipal: `👩‍🏫 Vice Principal
+
+Mrs. S.A.Dhanalakshmi is the Vice Principal of P.K.R. Arts College for Women, Gobichettipalayam, Tamil Nadu.
+She serves as the President of the college's Research Cell and emphasizes the institution's mission to foster academic excellence, discipline, and moral values among young women.`,
+
+  establishedBy: `🏫 Established By
+
+P.K.R. Arts College for Women was established in 1994 by the Dhandapani Rural Charitable Trust.
+The institution was founded through the dedicated efforts of its founder correspondent, late Thiru P.R. Natarajan.
+He established the college in memory of his father, late Thiru P.K. Ramasamy, with a mission to empower rural women in and around Gobichettipalayam through quality higher education.`,
 
 
   departments: `🏫 PKR College Departments
@@ -313,103 +791,199 @@ Shaping entrepreneurs to build quality enterprises.
 MISSION
 To impart practical knowledge that imbibes managerial skills and confidence among students.`,
 
+  tamilfaculty: `📚 Department of Tamil - Faculty
+1. Dr. G.Umamaheswari - Assistant Professor & Head
+2. Dr. K.Mohana - Assistant Professor
+3. Dr. N.Amirthakodi - Assistant Professor
+4. Dr. A.Senthamizhselvi - Assistant Professor
+5. Dr. S.Ariyanacheyammal - Assistant Professor
+6. Ms. S.Vasutha - Assistant Professor
+7. Ms. K.Nivetha - Assistant Professor
+8. Ms. G.Malarvizhi - Assistant Professor
+9. Ms.Sujitha - Assistant Professor
+10. Ms.Sivavarthini - Assistant Professor`,
+
+  englishfaculty: `📘 Department of English - Faculty
+1. Ms. P.N.Pushpalatha - Assistant Professor & Head
+2. Ms. S.Abinaya - Assistant Professor
+3. Ms. S.G.Nandhini - Assistant Professor
+4. Ms. T.Ramya - Assistant Professor
+5. Ms. A.Abiraami - Assistant Professor
+6. Ms. G.Kanagasuganya - Assistant Professor
+7. Ms. D.Jeevachristina - Assistant Professor
+8. Ms. B.Jancy - Assistant Professor
+9. Ms. S.Lavanya - Assistant Professor
+10. Ms. S.Shameera Thasneem - Assistant Professor
+11. Ms. V.Previsha - Assistant Professor`,
+
+  mathsfaculty: `📐 Department of Mathematics - Faculty
+1. Ms. S.A.Dhanalakshmi - Controller
+2. Ms. R.Jayalakshmi - Asst. Prof & Head
+3. Dr. M.Kasthuri - Associate Professor
+4. Ms. L.Priya - Assistant Professor
+5. Ms. A.Poornima - Assistant Professor
+6. Ms. S.Mayuri - Assistant Professor
+7. Ms. S.Deepika - Assistant Professor
+8. Ms. P.Yamunarani - Assistant Professor
+9. Ms. S.Amshalekha - Assistant Professor
+10. Ms. E.Deepika - Assistant Professor
+11. Dr. S.Gomathi - Assistant Professor
+12. Ms. P.Vidhya - Assistant Professor
+13. Ms. T.Nanthini - Assistant Professor`,
+
+  physicsfaculty: `🔬 Department of Physics - Faculty
+1. Dr. C.Aruljothi - Asst. Prof & Head
+2. Ms. K.Euchristmary - Assistant Professor
+3. Ms. P.Priyanka - Assistant Professor
+4. Ms. M.Christi Libiya - Assistant Professor`,
+
+  computersciencefaculty: `💻 Department of Computer Science - Faculty
+1. Dr. P.M.Gomathi - Dean
+2. Dr. S.Sampath - Head (AI & ML)
+3. Dr. O.P.Uma Maheswari - Head (CS & IT)
+4. Dr. M.Indira - Associate Professor
+5. Dr. V.S.Lavanya - Associate Professor
+6. Dr. M.Prema - Assistant Professor
+7. Dr. S.Kiruthika - Assistant Professor
+8. Dr. P.Vijayalakshmi - Assistant Professor
+9. Dr. T.B.Saranyapreetha - Assistant Professor
+10. Ms. C.Thangamani - Associate Professor
+11. Dr. R.Anushiya - Assistant Professor
+12. Dr. M.Saranya - Associate Professor
+13. Ms. V.Malarvizhi - Assistant Professor
+14. Ms. J.Divyabharathi - Assistant Professor
+15. Ms. K.Jayavarthini - Assistant Professor
+16. Ms. V.Srikalpana - Assistant Professor`,
+
+  commercefaculty: `📊 Department of Commerce - Faculty
+1. Dr. P.Natesan - Dean
+2. Dr. N.Nancy Fernandez - Head
+3. Ms. S.Kirubharani - Head (Commerce CA)
+4. Ms. V.Abirami - Assistant Professor
+5. Dr. N.Ramya - Assistant Professor
+6. Dr. S.Lingeswari - Assistant Professor
+7. Dr. T.Kokilapriya - Head (Commerce PA)
+8. Dr. N.Surega - Assistant Professor
+9. Dr. B.S.Kiruthika - Assistant Professor
+10. Ms. K.Chitra - Assistant Professor
+11. Ms. G.S.Gayathri - Assistant Professor
+12. Ms. S.Varshini - Assistant Professor
+13. Ms. S.Sowmiya - Assistant Professor
+14. Ms. R.Sureka - Assistant Professor
+15. Ms. S.Bharathi - Assistant Professor
+16. Dr. A.Rahamath Nisha - Assistant Professor
+17. Ms. T.Santhiya - Assistant Professor
+18. Ms. T.Revathi - Assistant Professor`,
+
+  managementfaculty: `📈 Department of Management - Faculty
+1. Dr. V.Kavitha - Associate Professor & Head
+2. Dr. K.Radhamani - Assistant Professor
+3. Ms. S.Subathara Devi - Assistant Professor
+4. Ms. R.Gomathi - Assistant Professor
+5. Dr. G.K.Pooranee - Assistant Professor
+6. Ms. A.Arulmirthadevi - Assistant Professor
+7. Ms. A.C.Sowmiya - Assistant Professor
+8. Ms. R.Rajeswari - Assistant Professor
+9. Ms. P.M.Shiyana - Assistant Professor
+10. Ms. S.Kalpana - Assistant Professor`,
+
   faculty: `👩‍🏫 PKR College Teaching Faculty
 
-📚 Department of Tamil
-1. Dr. G. Umamaheswari – Assistant Professor & Head
-2. Dr. K. Mohana – Assistant Professor
-3. Dr. N. Amirthakodi – Assistant Professor
-4. Dr. A. Senthamizhselvi – Assistant Professor
-5. Dr. S. Ariyanacheyammal – Assistant Professor
-6. Ms. S. Vasutha – Assistant Professor
-7. Ms. K. Nivetha – Assistant Professor
-8. Ms. G. Malarvizhi – Assistant Professor
-9. Ms. Sujitha – Assistant Professor
-10. Ms. Sivavarthini – Assistant Professor
+📚 Department of Tamil - Faculty
+1. Dr. G.Umamaheswari - Assistant Professor & Head
+2. Dr. K.Mohana - Assistant Professor
+3. Dr. N.Amirthakodi - Assistant Professor
+4. Dr. A.Senthamizhselvi - Assistant Professor
+5. Dr. S.Ariyanacheyammal - Assistant Professor
+6. Ms. S.Vasutha - Assistant Professor
+7. Ms. K.Nivetha - Assistant Professor
+8. Ms. G.Malarvizhi - Assistant Professor
+9. Ms.Sujitha - Assistant Professor
+10. Ms.Sivavarthini - Assistant Professor,
 
-📚 Department of English
-1. Ms. P.N. Pushpalatha – Assistant Professor & Head
-2. Ms. S. Abinaya – Assistant Professor
-3. Ms. S.G. Nandhini – Assistant Professor
-4. Ms. T. Ramya – Assistant Professor
-5. Ms. A. Abiraami – Assistant Professor
-6. Ms. G. Kanagasuganya – Assistant Professor
-7. Ms. D. Jeevachristina – Assistant Professor
-8. Ms. B. Jancy – Assistant Professor
-9. Ms. S. Lavanya – Assistant Professor
-10. Ms. S. Shameera Thasneem – Assistant Professor
-11. Ms. V. Previsha – Assistant Professor
+📘 Department of English - Faculty
+1. Ms. P.N.Pushpalatha - Assistant Professor & Head
+2. Ms. S.Abinaya - Assistant Professor
+3. Ms. S.G.Nandhini - Assistant Professor
+4. Ms. T.Ramya - Assistant Professor
+5. Ms. A.Abiraami - Assistant Professor
+6. Ms. G.Kanagasuganya - Assistant Professor
+7. Ms. D.Jeevachristina - Assistant Professor
+8. Ms. B.Jancy - Assistant Professor
+9. Ms. S.Lavanya - Assistant Professor
+10. Ms. S.Shameera Thasneem - Assistant Professor
+11. Ms. V.Previsha - Assistant Professor,
 
-📚 Department of Mathematics
-1. Ms. S.A. Dhanalakshmi – Controller
-2. Ms. R. Jayalakshmi – Asst. Prof & Head
-3. Dr. M. Kasthuri – Associate Professor
-4. Ms. L. Priya – Assistant Professor
-5. Ms. A. Poornima – Assistant Professor
-6. Ms. S. Mayuri – Assistant Professor
-7. Ms. S. Deepika – Assistant Professor
-8. Ms. P. Yamunarani – Assistant Professor
-9. Ms. S. Amshalekha – Assistant Professor
-10. Ms. E. Deepika – Assistant Professor
-11. Dr. S. Gomathi – Assistant Professor
-12. Ms. P. Vidhya – Assistant Professor
-13. Ms. T. Nanthini – Assistant Professor
+📐 Department of Mathematics - Faculty
+1. Ms. S.A.Dhanalakshmi - Controller
+2. Ms. R.Jayalakshmi - Asst. Prof & Head
+3. Dr. M.Kasthuri - Associate Professor
+4. Ms. L.Priya - Assistant Professor
+5. Ms. A.Poornima - Assistant Professor
+6. Ms. S.Mayuri - Assistant Professor
+7. Ms. S.Deepika - Assistant Professor
+8. Ms. P.Yamunarani - Assistant Professor
+9. Ms. S.Amshalekha - Assistant Professor
+10. Ms. E.Deepika - Assistant Professor
+11. Dr. S.Gomathi - Assistant Professor
+12. Ms. P.Vidhya - Assistant Professor
+13. Ms. T.Nanthini - Assistant Professor,
 
-📚 Department of Physics
-1. Dr. C. Aruljothi – Asst. Prof & Head
-2. Ms. K. Euchristmary – Assistant Professor
-3. Ms. P. Priyanka – Assistant Professor
-4. Ms. M. Christi Libiya – Assistant Professor
+🔬 Department of Physics - Faculty
+1. Dr. C.Aruljothi - Assistant Proffesor & Head
+2. Ms. K.Euchristmary - Assistant Professor
+3. Ms. P.Priyanka - Assistant Professor
+4. Ms. M.Christi Libiya - Assistant Professor,
 
-📚 Department of Computer Science
-1. Dr. P.M. Gomathi – Dean
-2. Dr. S. Sampath – Head (AI & ML)
-3. Dr. O.P. Uma Maheswari – Head (CS & IT)
-4. Dr. M. Indira – Associate Professor
-5. Dr. V.S. Lavanya – Associate Professor
-6. Dr. M. Prema – Assistant Professor
-7. Dr. S. Kiruthika – Assistant Professor
-8. Dr. P. Vijayalakshmi – Assistant Professor
-9. Dr. T.B. Saranyapreetha – Assistant Professor
-10. Ms. C. Thangamani – Associate Professor
-11. Dr. R. Anushiya – Assistant Professor
-12. Dr. M. Saranya – Associate Professor
-13. Ms. V. Malarvizhi – Assistant Professor
-14. Ms. J. Divyabharathi – Assistant Professor
-15. Ms. K. Jayavarthini – Assistant Professor
-16. Ms. V. Srikalpana – Assistant Professor
+💻 Department of Computer Science - Faculty
+1. Dr. P.M.Gomathi - Dean
+2. Dr. S.Sampath - Head (AI & ML)
+3. Dr. O.P.Uma Maheswari - Head (CS & IT)
+4. Dr. M.Indira - Associate Professor
+5. Dr. V.S.Lavanya - Associate Professor
+6. Dr. M.Prema - Assistant Professor
+7. Dr. S.Kiruthika - Assistant Professor
+8. Dr. P.Vijayalakshmi - Assistant Professor
+9. Dr. T.B.Saranyapreetha - Assistant Professor
+10. Ms. C.Thangamani - Associate Professor
+11. Dr. R.Anushiya - Assistant Professor
+12. Dr. M.Saranya - Associate Professor
+13. Ms. V.Malarvizhi - Assistant Professor
+14. Ms. J.Divyabharathi - Assistant Professor
+15. Ms. K.Jayavarthini - Assistant Professor
+16. Ms. V.Srikalpana - Assistant Professor
 
-📚 Department of Commerce
-1. Dr. P. Natesan – Dean
-2. Dr. N. Nancy Fernandez – Head
-3. Ms. S. Kirubharani – Head (Commerce CA)
-4. Ms. V. Abirami – Assistant Professor
-5. Dr. N. Ramya – Assistant Professor
-6. Dr. S. Lingeswari – Assistant Professor
-7. Dr. T. Kokilapriya – Head (Commerce PA)
-8. Dr. N. Surega – Assistant Professor
-9. Dr. B.S. Kiruthika – Assistant Professor
-10. Ms. K. Chitra – Assistant Professor
-11. Ms. G.S. Gayathri – Assistant Professor
-12. Ms. S. Varshini – Assistant Professor
-13. Ms. S. Sowmiya – Assistant Professor
-14. Ms. R. Sureka – Assistant Professor
-15. Ms. S. Bharathi – Assistant Professor
-16. Dr. A. Rahamath Nisha – Assistant Professor
-17. Ms. T. Santhiya – Assistant Professor
-18. Ms. T. Revathi – Assistant Professor
+📊 Department of Commerce - Faculty
+1. Dr. P.Natesan - Dean
+2. Dr. N.Nancy Fernandez - Head
+3. Ms. S.Kirubharani - Head (Commerce CA)
+4. Ms. V.Abirami - Assistant Professor
+5. Dr. N.Ramya - Assistant Professor
+6. Dr. S.Lingeswari - Assistant Professor
+7. Dr. T.Kokilapriya - Head (Commerce PA)
+8. Dr. N.Surega - Assistant Professor
+9. Dr. B.S.Kiruthika - Assistant Professor
+10. Ms. K.Chitra - Assistant Professor
+11. Ms. G.S.Gayathri - Assistant Professor
+12. Ms. S.Varshini - Assistant Professor
+13. Ms. S.Sowmiya - Assistant Professor
+14. Ms. R.Sureka - Assistant Professor
+15. Ms. S.Bharathi - Assistant Professor
+16. Dr. A.Rahamath Nisha - Assistant Professor
+17. Ms. T.Santhiya - Assistant Professor
+18. Ms. T.Revathi - Assistant Professor,
 
-📚 Department of Management
-1. Dr. V. Kavitha – Associate Professor & Head
-2. Dr. K. Radhamani – Assistant Professor
-3. Ms. S. Subathara Devi – Assistant Professor
-4. Ms. R. Gomathi – Assistant Professor
-5. Dr. G.K. Pooranee – Assistant Professor
-6. Ms. A. Arulmirthadevi – Assistant Professor
-7. Ms. A.C. Sowmiya – Assistant Professor
-8. Ms. R. Rajeswari – Assistant Professor
-9. Ms. P.M. Shiyana – Assistant Professor
-10. Ms. S. Kalpana – Assistant Professor
+📈 Department of Management - Faculty
+1. Dr. V.Kavitha - Associate Professor & Head
+2. Dr. K.Radhamani - Assistant Professor
+3. Ms. S.Subathara Devi - Assistant Professor
+4. Ms. R.Gomathi - Assistant Professor
+5. Dr. G.K.Pooranee - Assistant Professor
+6. Ms. A.Arulmirthadevi - Assistant Professor
+7. Ms. A.C.Sowmiya - Assistant Professor
+8. Ms. R.Rajeswari - Assistant Professor
+9. Ms. P.M.Shiyana - Assistant Professor
+10. Ms. S.Kalpana - Assistant Professor,
 
 📚 Library
 Ms. P.M. Esther Delsy – Librarian
@@ -603,8 +1177,7 @@ Ms. S. Sivaranjani – Physical Director`,
 
     The college volleyball team takes part in inter-college, university, and state level tournaments and has won several prizes.
 
-    Volleyball helps students improve physical fitness, coordination, teamwork, and leadership skills.
-`,
+    Volleyball helps students improve physical fitness, coordination, teamwork, and leadership skills.`,
 
    Hockey:`🏑HOCKEY
    
@@ -612,8 +1185,7 @@ Ms. S. Sivaranjani – Physical Director`,
    
    The college hockey team participates in inter-college and university level competitions and performs well in tournaments.
    
-   Hockey helps students develop teamwork, discipline, physical strength, and leadership qualities.
-`,
+   Hockey helps students develop teamwork, discipline, physical strength, and leadership qualities.`,
 
    Handball:`🤾‍♀️HAND BALL
    
@@ -684,16 +1256,15 @@ Ms. S. Sivaranjani – Physical Director`,
 
   The college shuttle team participates in inter-college and university level tournaments and has won several achievements.
 
-  Shuttle badminton helps students improve agility, concentration, coordination, and physical fitness.
-`,
+  Shuttle badminton helps students improve agility, concentration, coordination, and physical fitness.`,
 
-  scholarship: `🎓 SCHOLARSHIP DETAILS (1st Semester Only)
+  scholarship:`🎓 SCHOLARSHIP DETAILS (1st Semester Only)
 
 🔹 DRCT Scholarship
 Result 7–10 days → 15%
 Result 11–20 days → 10%`,
 
-hostel: `🏠 ABOUT HOSTEL
+  hostel:`🏠 ABOUT HOSTEL
 
 PKR Arts College for Women provides comfortable hostel facilities for students coming from far-off places.
 The hostel mess offers both vegetarian and non-vegetarian food, prepared hygienically using steam cooking methods.
@@ -701,7 +1272,7 @@ Audio-video recreational facilities and solar water heater systems are available
 The hostel ensures a 24-hour uninterrupted power supply through solar energy.
 Students are expected to maintain discipline, avoid wastage of food and water, and follow hostel rules strictly.`,
 
-hostelfacilities:` HOSTEL FACILITIES 
+  hostelfacilities:` HOSTEL FACILITIES 
 
 🔹Comfortable Accommodation – Well-furnished rooms with beds, study tables, chairs, and storage facilities.
 🔹24/7 Security – CCTV surveillance and security guards to ensure student safety.
@@ -742,20 +1313,19 @@ hostelrules:
     "Parents should monitor student's academic progress and behaviour inside and outside the college."
   ]`,
 
-
-hostelfees: `💰 HOSTEL FEE DETAILS
+  hostelfees:`💰 HOSTEL FEE DETAILS
 
 🔹 Admission Fee → ₹50 / year  
 🔹 Caution Deposit → ₹2000 (Refundable)
 
 🔹 Establishment Charges  
 UG → ₹5000 / year  
-PG → ₹6000 / year  `,
+PG → ₹6000 / year `,
 
- MessFees :` MESS FEES DETAILS
+  MessFees :` MESS FEES DETAILS
 ₹2300 – ₹2800 / month.`,
 
-library: `📚 PKR College Library Details
+  library:`📚 PKR College Library Details
 
 🔹 ABOUT LIBRARY
 Library provides an intellectual environment for students learning & knowledge gaining.  
@@ -767,40 +1337,39 @@ Provides DELNET and N-LIST under UGC-INFONET for accessing E-resources free of c
 Printing and photocopy facilities are available.  
 Library is upgraded regularly for students and faculty.`,
 
-  libraryhours: `📚 PKR College Library Hours
+  libraryhours:`📚 PKR College Library Hours
 
 🔹 WORKING HOURS
 Monday – Saturday : 8:30 AM to 6:00 PM`,
 
-  bookdetails: `📚 PKR College Library Book Details
+  bookdetails:`📚 PKR College Library Book Details
   
   🔹 BOOK DETAILS
 Number of Volumes : 35633  
 Number of Titles : 20540  
 
-🔹 JOURNALS & MAGAZINES
+  🔹 JOURNALS & MAGAZINES
 National : 73  
 International : 33  
 Dailies : 10  
 Online Journals (IEEE) : 03
 
-🔹 BOOK ISSUE DETAILS
+ 🔹 BOOK ISSUE DETAILS
 UG & Non Teaching Staff → 2 Books  
 PG → 4 Books  
 M.Phil → 5 Books  
 Ph.D → 7 Books  
 Teaching Staff → 15 Books  
 
-🔹 DAYS ALLOWED
+ 🔹 DAYS ALLOWED
 Students & Non Teaching Staff → 14 Days  
 Faculty → One Semester
 
-🔹 PENALTY
+ 🔹 PENALTY
 Delayed Return → ₹1 per day  
 Loss of Book → 3 Times Book Cost`,
   
-
-  libraryRules: `📖 Library Rules
+  libraryRules:`📖 Library Rules
 
 1. Library open on working days 8:30 AM – 6:00 PM
 2. Personal books & files must be kept at entrance rack
@@ -832,7 +1401,7 @@ Loss of Book → 3 Times Book Cost`,
 23. Rule violation leads to suspension
 24. Mobile phone usage inside library prohibited`,
 
-  publications: `📰 PKR College Publications
+  publications:`📰 PKR College Publications
 
 🔹 Department Magazines
 Tamil → நிலமுற்றம்  
@@ -900,15 +1469,21 @@ Afternoon → 01:15 PM – 04:00 PM
 02:15 PM – 04:00 PM (I Day Order)`
  };
 
-  const sendMessage = () => {
+  const sendMessage = (overrideInput?: string) => {
+    const messageText = (overrideInput ?? input).trim();
 
-    if(input.trim() === "") return;
+    if(messageText === "") return;
+    const inputLanguage = detectInputLanguage(messageText);
+    const defaultFallback =
+      inputLanguage === "ta" ? DEFAULT_TAMIL_FALLBACK : DEFAULT_ENGLISH_FALLBACK;
+    const noInfoText =
+      inputLanguage === "ta" ? NO_INFO_TAMIL : NO_INFO_ENGLISH;
 
-    const userText =input.toLowerCase();
+    const userText = messageText.toLowerCase();
 
     const userMsg: Message = {
   id: Date.now(),
-  text: input,
+  text: messageText,
   sender: "user"
 };
 
@@ -919,12 +1494,24 @@ setMessages(prev => [...prev, userMsg]);
   );
 };
 
-    setTimeout(() => {
+    setTimeout(async () => {
       
-      let userText = input
+      let userText = messageText
       .toLowerCase()
-      .replace(/[^a-z0-9 ]/g, "");
-      let botReply = "Sorry 😔 I didn't understand.";
+      .replace(/[^a-z0-9\u0B80-\u0BFF ]/g, "");
+      let botReply = defaultFallback;
+      const hasFacultyKeyword =
+        userText.includes("faculty") ||
+        userText.includes("faculties") ||
+        userText.includes("faculty member") ||
+        userText.includes("faculty members") ||
+        userText.includes("staff") ||
+        userText.includes("teacher") ||
+        userText.includes("teachers") ||
+        userText.includes("ஆசிரியர்") ||
+        userText.includes("ஆசிரியர்கள்") ||
+        userText.includes("பேராசிரியர்") ||
+        userText.includes("staff list");
 
       // 👋 Greetings
       if (greetings.some(word => userText.includes(word))) {
@@ -960,10 +1547,12 @@ setMessages(prev => [...prev, userMsg]);
   return;
 }
       else if(userText.includes("college details")||
-              userText.includes("College Details")||
-              userText.includes("College details")||
-              userText.includes("Collegedetails")||
-              userText.includes("collegedetails")
+              userText.includes("college info")||
+              userText.includes("collegeinfo")||
+              userText.includes("collegedetails") ||
+              userText.includes("கல்லூரி விவரம்") ||
+              userText.includes("கல்லூரியைப்பற்றி") ||
+              userText.includes("உங்கள் கல்லூரி")
 ){
   setMessages(prev => [
     ...prev,
@@ -978,33 +1567,76 @@ setMessages(prev => [...prev, userMsg]);
   ]);
   return; // 🔥 IMPORTANT
   }              
-                                
-      else if(userText.includes("collegeinfo")||
-              userText.includes("College info")||
-              userText.includes("college info")||
-              userText.includes("College Info")||
-              userText.includes("Collegeinfo")
+    
+      else if(
+  userText.includes("secretary") ||
+  userText.includes("correspondent") ||
+  userText.includes("secretary and correspondent") ||
+  userText.includes("செயலாளர்") ||
+  userText.includes("correspondent யார்")
 ){
   setMessages(prev => [
     ...prev,
     {
       id: Date.now() + 1,
-      text: botData.collegeinfo,
+      text: botData.secretaryCorrespondent,
       sender: "bot",
       images:[
-         require("../assets/images/building1.png"),
-         require("../assets/images/info2.png")
+        require("../assets/images/correspondent.jpeg")
       ]
     }
   ]);
-  return; // 🔥 IMPORTANT
-  }
-    
+  return;
+}
+      else if(
+  userText.includes("vice principal") ||
+  userText.includes("viceprincipal") ||
+  userText.includes("துணை முதல்வர்")
+){
+  setMessages(prev => [
+    ...prev,
+    {
+      id: Date.now() + 1,
+      text: botData.vicePrincipal,
+      sender: "bot",
+      images:[
+        require("../assets/images/viceprincipal.jpeg")
+      ]
+    }
+  ]);
+  return;
+}
+      else if(
+  userText.includes("established by whom") ||
+  userText.includes("who established") ||
+  userText.includes("who founded") ||
+  userText.includes("founded by whom") ||
+  userText.includes("founded by") ||
+  userText.includes("founder") ||
+  userText.includes("fouder")||
+  userText.includes("established by")||
+  userText.includes("establishedby")
+
+){
+  setMessages(prev => [
+    ...prev,
+    {
+      id: Date.now() + 1,
+      text: botData.establishedBy,
+      sender: "bot",
+      images:[
+        require("../assets/images/founder.jpeg"),
+      ]
+    }
+  ]);
+  return;
+}
       else if(
   userText.includes("about college")||
   userText.includes("about pkr")||
-  userText.includes("your college")||
-  userText.includes("Your college")
+  userText.includes("about your college")||
+  userText.includes("tell me about your college")||
+  userText.includes("tell me about college")
 ){
   setMessages(prev => [
     ...prev,
@@ -1207,8 +1839,57 @@ else if (
 }
 
 
-      /* ================= DEPARTMENTS ================= */
+      /* ================= FACULTY BY DEPARTMENT ================= */
 
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("tamil department") || userText.includes("department of tamil") || userText.includes("tamil") || userText.includes("தமிழ் துறை"))
+) {
+  botReply = botData.tamilfaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("english department") || userText.includes("department of english") || userText.includes("eng department") || userText.includes("english") || userText.includes("ஆங்கில துறை"))
+) {
+  botReply = botData.englishfaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("maths department") || userText.includes("department of maths") || userText.includes("mathematics department") || userText.includes("department of mathematics") || userText.includes("maths") || userText.includes("mathematics") || userText.includes("கணித துறை"))
+) {
+  botReply = botData.mathsfaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("physics department") || userText.includes("department of physics") || userText.includes("physics") || userText.includes("இயற்பியல் துறை"))
+) {
+  botReply = botData.physicsfaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("computer science department") || userText.includes("department of computer science") || userText.includes("department of computerscience") || userText.includes("cs department") || userText.includes("department of cs") || userText.includes("computer science") || userText.includes("cs") || userText.includes("கணினி அறிவியல் துறை"))
+) {
+  botReply = botData.computersciencefaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("commerce department") || userText.includes("department of commerce") || userText.includes("commerce") || userText.includes("வணிகவியல் துறை"))
+) {
+  botReply = botData.commercefaculty;
+}
+
+else if (
+  hasFacultyKeyword &&
+  (userText.includes("management department") || userText.includes("department of management") || userText.includes("management") || userText.includes("மேலாண்மை துறை"))
+) {
+  botReply = botData.managementfaculty;
+}
+      /* ================= DEPARTMENTS ================= */
 // Tamil
 else if (
   userText.includes("tamil department")||
@@ -1290,9 +1971,7 @@ else if(
       else if(
         userText.includes("faculty details") ||
         userText.includes("Faculty details") ||
-        userText.includes("faculty") ||
-        userText.includes("staff") ||
-        userText.includes("teachers") ||
+        hasFacultyKeyword ||
         userText.includes("department staff")
       ){
         botReply = botData.faculty;
@@ -1407,7 +2086,10 @@ else if(
         userText.includes("college address")||
         userText.includes("college location")||
         userText.includes("enga")||
-        userText.includes("edam")){
+        userText.includes("edam") ||
+        userText.includes("எங்கு") ||
+        userText.includes("முகவரி") ||
+        userText.includes("இடம்")){
         botReply = botData.address;
       }
 
@@ -1504,8 +2186,6 @@ else if(
   ]);
   return;
 }
-
-
     else if(
       userText.includes("football")||
       userText.includes("foot ball")||
@@ -1711,7 +2391,9 @@ else if(
         userText.includes("timing") ||
         userText.includes("time") ||
         userText.includes("college time") ||
-        userText.includes("working hours")
+        userText.includes("working hours") ||
+        userText.includes("நேரம்") ||
+        userText.includes("நேரங்கள்")
       ){
           botReply = botData.timings;
       }
@@ -1793,9 +2475,8 @@ else if (
   userText.includes("about you") ||
   userText.includes("who are you") ||
   userText.includes("your info") ||
-  userText.includes("About you")||
-  userText.includes("Who are you")||
-  userText.includes("Your info")
+  userText.includes("what you do?")||
+  userText.includes("what's your work")
 ) {
   botReply = botData.aboutbot;
 }
@@ -1823,6 +2504,21 @@ else if(
     botReply += "\n\n" + botData.fees.otherFees;
   }
 }
+      let modelAudioUri: string | null = null;
+      if (botReply === defaultFallback) {
+        if (!ragSectionsRef.current) {
+          ragSectionsRef.current = buildRagSections(botData);
+        }
+        const ragContext = getRagContext(messageText, ragSectionsRef.current);
+        if (!ragContext) {
+          botReply = noInfoText;
+        } else {
+          const modelResult = await fetchModelReply(messageText, inputLanguage, ragContext);
+          botReply = modelResult.text;
+          modelAudioUri = modelResult.audioUri;
+        }
+      }
+
       const botMsg: Message = {
   id: Date.now() + 1,
   text: botReply,
@@ -1831,9 +2527,78 @@ else if(
 
 setMessages(prev => [...prev, botMsg]);
 
+      if (modelAudioUri) {
+        skipNextAutoSpeakRef.current = true;
+        await playModelAudio(modelAudioUri, activeSoundRef);
+      }
+
     }, 700);
 
     setInput("");
+  };
+
+  const handleMicPress = async () => {
+    if (isTranscribing) return;
+
+    if (!isRecording) {
+      try {
+        const permission = await Audio.requestPermissionsAsync();
+        if (!permission.granted) return;
+
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: true,
+          playsInSilentModeIOS: true,
+        });
+
+        const recording = new Audio.Recording();
+        await recording.prepareToRecordAsync(Audio.RecordingOptionsPresets.HIGH_QUALITY);
+        await recording.startAsync();
+        recordingRef.current = recording;
+        setIsRecording(true);
+      } catch {
+        setIsRecording(false);
+      }
+      return;
+    }
+
+    try {
+      setIsRecording(false);
+      setIsTranscribing(true);
+
+      const recording = recordingRef.current;
+      if (!recording) {
+        setIsTranscribing(false);
+        return;
+      }
+
+      await recording.stopAndUnloadAsync();
+      const uri = recording.getURI();
+      recordingRef.current = null;
+
+      if (!uri) {
+        setIsTranscribing(false);
+        return;
+      }
+
+      const asrResult = await transcribeAudioWithHF(uri);
+      if (asrResult.text) {
+        setInput(asrResult.text);
+        sendMessage(asrResult.text);
+      } else {
+        setMessages(prev => [
+          ...prev,
+          {
+            id: Date.now() + 1,
+            sender: "bot",
+            text: "I couldn't transcribe that voice clearly. Please try again."
+          }
+        ]);
+      }
+    } catch {
+      // Keep app stable even if mic/transcription fails.
+    } finally {
+      setIsTranscribing(false);
+    }
   };
 
   return (
@@ -1841,12 +2606,29 @@ setMessages(prev => [...prev, botMsg]);
       style={{flex:1}}
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
-      <View style={styles.container}>
+      <LinearGradient
+        colors={["#F4EDFF", "#EDE1FF", "#E8D9FF", "#E2D0FF"]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.container}
+      >
+        <View style={styles.lightOrbTop} />
+        <View style={styles.lightOrbMid} />
+        <View style={styles.lightOrbBottom} />
+        <View style={styles.sparkleOne} />
+        <View style={styles.sparkleTwo} />
+        <View style={styles.sparkleThree} />
+        <View style={styles.sparkleFour} />
+
+        <View style={styles.titleBar}>
+          <Text style={styles.titleText}>Noah-AI Assistant</Text>
+        </View>
 
         <FlatList
   data={messages}
   keyExtractor={(item)=>item.id.toString()}
-  contentContainerStyle={{padding:18}}
+  style={styles.chatList}
+  contentContainerStyle={{paddingHorizontal:18, paddingBottom:16}}
   renderItem={({item}) => (
     <View style={[
       styles.messageBubble,
@@ -1861,19 +2643,22 @@ setMessages(prev => [...prev, botMsg]);
       ]}>
         {item.text}
       </Text>
-      {item.images?.map((img, index) => (
-  <Image
-    key={index}
-    source={img}
-    style={{
-      width: 200,
-      height: 130,
-      marginTop: 10,
-      borderRadius: 10
-    }}
-    resizeMode="cover"
-  />
-))}
+      {(() => {
+        const isFounderResponse = item.text === botData.establishedBy;
+        return item.images?.map((img, index) => (
+          <Image
+            key={index}
+            source={img}
+            style={{
+              width: 200,
+              height: isFounderResponse ? 240 : 130,
+              marginTop: 10,
+              borderRadius: 10
+            }}
+            resizeMode={isFounderResponse ? "contain" : "cover"}
+          />
+        ));
+      })()}
      
       {/* 🔥 Google Map Link */}
       {item.text.includes("Tap below to open in Google Maps") && (
@@ -1884,7 +2669,7 @@ setMessages(prev => [...prev, botMsg]);
             )
           }
         >
-          <Text style={{color:"blue", marginTop:8}}>
+          <Text style={{color:"#8ED0FF", marginTop:8}}>
             📍 Open in Google Maps
           </Text>
         </TouchableOpacity>
@@ -1899,15 +2684,37 @@ setMessages(prev => [...prev, botMsg]);
             onChangeText={setInput}
             placeholder="Type a message..."
             style={styles.input}
-            placeholderTextColor="#888"
+            placeholderTextColor="#6F5A8D"
           />
 
-          <TouchableOpacity style={styles.sendBtn} onPress={sendMessage}>
+          <TouchableOpacity
+            style={[
+              styles.micBtn,
+              isRecording && styles.micBtnActive,
+              isTranscribing && styles.micBtnDisabled
+            ]}
+            onPress={handleMicPress}
+            disabled={isTranscribing}
+          >
+            <Ionicons
+              name={
+                isTranscribing
+                  ? "ellipsis-horizontal"
+                  : isRecording
+                  ? "stop-circle"
+                  : "mic"
+              }
+              size={20}
+              color="#FFFFFF"
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.sendBtn} onPress={() => sendMessage()}>
             <Text style={styles.sendText}>Send</Text>
           </TouchableOpacity>
         </View>
 
-      </View>
+      </LinearGradient>
     </KeyboardAvoidingView>
   );
 }
@@ -1916,54 +2723,195 @@ const styles = StyleSheet.create({
 
   container:{
     flex:1,
-    backgroundColor:"#F5F5F5"
+    backgroundColor:"#F4EDFF"
+  },  lightOrbTop:{
+    position:"absolute",
+    width:260,
+    height:260,
+    borderRadius:130,
+    backgroundColor:"rgba(186,122,255,0.24)",
+    top:-80,
+    right:-60
+  },
+
+  lightOrbMid:{
+    position:"absolute",
+    width:220,
+    height:220,
+    borderRadius:110,
+    backgroundColor:"rgba(159,95,255,0.18)",
+    top:220,
+    left:-90
+  },
+
+  lightOrbBottom:{
+    position:"absolute",
+    width:260,
+    height:260,
+    borderRadius:130,
+    backgroundColor:"rgba(200,153,255,0.2)",
+    bottom:120,
+    right:-70
+  },
+
+  sparkleOne:{
+    position:"absolute",
+    width:8,
+    height:8,
+    borderRadius:4,
+    backgroundColor:"rgba(255,255,255,0.95)",
+    top:110,
+    right:36
+  },
+
+  sparkleTwo:{
+    position:"absolute",
+    width:6,
+    height:6,
+    borderRadius:3,
+    backgroundColor:"rgba(255,255,255,0.85)",
+    top:200,
+    left:26
+  },
+
+  sparkleThree:{
+    position:"absolute",
+    width:7,
+    height:7,
+    borderRadius:3.5,
+    backgroundColor:"rgba(255,255,255,0.85)",
+    bottom:210,
+    right:48
+  },
+
+  sparkleFour:{
+    position:"absolute",
+    width:5,
+    height:5,
+    borderRadius:2.5,
+    backgroundColor:"rgba(255,255,255,0.75)",
+    bottom:150,
+    left:42
+  },
+
+  titleBar:{
+    marginTop:12,
+    marginHorizontal:16,
+    paddingVertical:12,
+    borderRadius:16,
+    backgroundColor:"rgba(255,255,255,0.82)",
+    borderWidth:1,
+    borderColor:"rgba(140,78,255,0.42)",
+    alignItems:"center",
+    shadowColor:"#8B5CF6",
+    shadowOffset:{ width:0, height:0 },
+    shadowOpacity:0.34,
+    shadowRadius:14,
+    elevation:6
+  },
+
+  titleText:{
+    color:"#4A0F99",
+    fontSize:24,
+    fontWeight:"900",
+    letterSpacing:0.7
+  },
+
+  chatList:{
+    flex:1,
+    marginTop:10
   },
 
   messageBubble:{
     padding:18,
     borderRadius:22,
     marginVertical:8,
-    maxWidth:"80%"
+    maxWidth:"82%",
+    borderWidth:1,
+    borderColor:"rgba(210,174,255,0.22)"
   },
 
   userBubble:{
     alignSelf:"flex-end",
-    backgroundColor:"#7A3BFF"
+    backgroundColor:"#8D43FF",
+    shadowColor:"#A855F7",
+    shadowOffset:{ width:0, height:0 },
+    shadowOpacity:0.45,
+    shadowRadius:14,
+    elevation:8
   },
 
   botBubble:{
     alignSelf:"flex-start",
-    backgroundColor:"white",
-    elevation:3
+    backgroundColor:"rgba(255,255,255,0.72)",
+    shadowColor:"#7C3AED",
+    shadowOffset:{ width:0, height:0 },
+    shadowOpacity:0.18,
+    shadowRadius:8,
+    elevation:4
   },
 
   messageText:{
     fontSize:20,
-    fontWeight:"500"
+    fontWeight:"500",
+    color:"#33115E"
   },
 
   inputContainer:{
     flexDirection:"row",
     padding:12,
-    backgroundColor:"white",
-    alignItems:"center"
+    backgroundColor:"rgba(255,255,255,0.62)",
+    alignItems:"center",
+    borderTopWidth:1,
+    borderTopColor:"rgba(157,101,255,0.24)"
   },
 
   input:{
     flex:1,
-    backgroundColor:"#F0F0F0",
+    backgroundColor:"rgba(255,255,255,0.78)",
     borderRadius:28,
     paddingHorizontal:20,
     height:52,
-    fontSize:18
+    fontSize:18,
+    color:"#2F1156",
+    borderWidth:1,
+    borderColor:"rgba(164,111,255,0.26)"
+  },
+
+  micBtn:{
+    marginLeft:10,
+    backgroundColor:"#8D43FF",
+    paddingHorizontal:16,
+    paddingVertical:14,
+    borderRadius:28,
+    borderWidth:1,
+    borderColor:"rgba(141,67,255,0.7)",
+    shadowColor:"#B26DFF",
+    shadowOffset:{ width:0, height:0 },
+    shadowOpacity:0.5,
+    shadowRadius:14,
+    elevation:8
+  },
+
+  micBtnActive:{
+    backgroundColor:"rgba(255,104,104,0.3)"
+  },
+
+  micBtnDisabled:{
+    opacity:0.6
   },
 
   sendBtn:{
     marginLeft:10,
-    backgroundColor:"#9B5CFF",
+    backgroundColor:"#8D43FF",
     paddingHorizontal:24,
     paddingVertical:14,
-    borderRadius:28
+    borderRadius:28,
+    shadowColor:"#B26DFF",
+    shadowOffset:{ width:0, height:0 },
+    shadowOpacity:0.5,
+    shadowRadius:14,
+    elevation:8
   },
 
   sendText:{

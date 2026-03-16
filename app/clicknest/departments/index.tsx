@@ -1,5 +1,6 @@
 import { View, Text, FlatList, TouchableOpacity, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
 
 export default function Departments() {
   const router = useRouter();
@@ -15,68 +16,62 @@ export default function Departments() {
   ];
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>🎓 Department Activities</Text>
-      <Text style={styles.subtitle}>Click a department to see details</Text>
+    <LinearGradient colors={["#FAF3FF", "#F2E8FF", "#E8DCFF"]} style={styles.container}>
+      <Text style={styles.title}>Department Activities</Text>
+      <Text style={styles.subtitle}>Choose a department</Text>
 
       <FlatList
         data={departments}
         keyExtractor={(item) => item.name}
-        contentContainerStyle={{ paddingTop: 10 }}
-        renderItem={({ item }) => (
+        contentContainerStyle={{ paddingTop: 12, paddingBottom: 20 }}
+        renderItem={({ item, index }) => (
           <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() =>
-              router.push({
-                pathname: item.route as any,
-              })
-            }
+            style={[styles.card, index % 2 === 0 ? styles.cardEven : styles.cardOdd]}
+            activeOpacity={0.86}
+            onPress={() => router.push({ pathname: item.route as any })}
           >
-            <Text style={styles.text}>{item.name}</Text>
           </TouchableOpacity>
         )}
       />
-    </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#FAF5FF", // very light purple
-    padding: 16,
-  },
+  container: { flex: 1, padding: 16 },
   title: {
-    fontSize: 26,
-    fontWeight: "bold",
-    color: "#6D28D9", // purple heading
+    fontSize: 28,
+    fontWeight: "900",
+    color: "#4D1F9A",
     textAlign: "center",
-    marginTop: 10,
+    marginTop: 8,
   },
   subtitle: {
     textAlign: "center",
-    color: "#6B7280",
-    marginBottom: 20,
+    color: "#6B56A0",
+    marginBottom: 10,
+    marginTop: 4,
     fontSize: 14,
   },
   card: {
-    backgroundColor: "#F3E8FF", // soft lavender
-    paddingVertical: 18,
-    borderRadius: 30, // pill shape
-    marginBottom: 14,
+    backgroundColor: "rgba(255,255,255,0.78)",
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,95,255,0.2)",
+    flexDirection: "row",
+    justifyContent: "space-between",
     alignItems: "center",
-
-    // shadow (like screenshot)
-    shadowColor: "#C084FC",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 5,
+    shadowColor: "#8B5CF6",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  text: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#6D28D9", // purple text
-  },
+  cardEven: { marginRight: 6 },
+  cardOdd: { marginLeft: 6 },
+  text: { fontSize: 16, fontWeight: "700", color: "#5A24AE" },
+  chev: { fontSize: 24, color: "#8B5CF6", fontWeight: "700" },
 });
