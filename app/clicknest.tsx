@@ -70,6 +70,14 @@ export default function ClickNest() {
           <View style={[styles.accentBar, { backgroundColor: "#8B5CF6" }]} />
           <Text style={styles.actionText}>🏅 Achievements</Text>
         </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.actionRow}
+          onPress={() => router.push("/clicknest/NSS-YRC")}
+          activeOpacity={0.85}
+        >
+          <View style={[styles.accentBar, { backgroundColor: "#B26BFF" }]} />
+          <Text style={styles.actionText}>NSS / YRC</Text>
+        </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
   );
