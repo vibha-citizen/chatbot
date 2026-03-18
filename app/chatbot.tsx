@@ -51,7 +51,7 @@ export default function Chatbot() {
       <View style={styles.grid}>
         <TouchableOpacity
   style={[styles.box, { backgroundColor: '#FDE7FF' }]}
-  onPress={() => router.push("/admission")} >
+  onPress={() => openChat("Admissions: how do I enroll?")} >
   <Text style={styles.boxText}>Enroll</Text>
 </TouchableOpacity>
 
