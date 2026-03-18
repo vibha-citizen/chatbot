@@ -75,6 +75,8 @@ const tokenizeForRag = (value: string): string[] => {
   return norm.split(" ").filter(Boolean);
 };
 
+const includesAny = (text: string, list: string[]): boolean => list.some(word => text.includes(word));
+
 const buildRagSections = (data: Record<string, any>): RagSection[] => {
   const sections: RagSection[] = [];
 
@@ -416,7 +418,6 @@ export default function Chat() {
   const recordingRef = useRef<Audio.Recording | null>(null);
   const skipNextAutoSpeakRef = useRef(false);
   const hasMountedRef = useRef(false);
-  const autoActionRef = useRef(false);
   const ragSectionsRef = useRef<RagSection[] | null>(null);
 
   const speakText = (text: string, language: AppLanguage = "en") => {
@@ -466,14 +467,10 @@ export default function Chat() {
   }, []);
 
   useEffect(() => {
-    if (autoActionRef.current) return;
-    if (!question) return;
-
-    const trimmed = String(question).trim();
-    if (!trimmed) return;
-
-    autoActionRef.current = true;
-    sendMessage(trimmed);
+    const trimmed = question ? String(question).trim() : "";
+    if (trimmed) {
+      setInput(trimmed);
+    }
 
     if (openMap === "1") {
       setTimeout(() => {
@@ -505,6 +502,112 @@ export default function Chat() {
  const greetings = ["hi", "hello", "hey", "hai", "vanakkam"];
  const thanksWords = ["thanks", "thank you", "thanku", "tnx", "thx"];
  const appreciationWords = ["nice", "super", "good", "great", "awesome", "wow", "excellent", "amazing"];
+  const admissionKeywords = [
+    "admission",
+    "admissions",
+    "admision",
+    "admsn",
+    "admit",
+    "enroll",
+    "enrol",
+    "enrolll",
+    "entroll",
+    "entrol",
+    "enrollment",
+    "enrolment",
+    "apply",
+    "application",
+    "application form",
+    "seat",
+    "joining",
+    "join",
+    "join college",
+    "admission process",
+    "admission procedure",
+    "how to join",
+    "how to apply",
+    "apply panna",
+    "enroll panna",
+    "enrollment details",
+    "counselling",
+    "counseling"
+  ];
+  const admissionEligibilityKeywords = [
+    "eligibility",
+    "eligible",
+    "eligiblity",
+    "eligiblitiy",
+    "eligability",
+    "eligable",
+    "qualification",
+    "criteria",
+    "cutoff",
+    "cut off",
+    "12th",
+    "hsc",
+    "marks",
+    "percentage",
+    "12th pass"
+  ];
+  const admissionFeeKeywords = [
+    "fee",
+    "fees",
+    "application fee",
+    "cost",
+    "price",
+    "payment",
+    "pay",
+    "amount",
+    "rs",
+    "₹",
+    "500"
+  ];
+  const admissionDateKeywords = [
+    "date",
+    "dates",
+    "last date",
+    "deadline",
+    "closing",
+    "schedule",
+    "apply by",
+    "jan",
+    "mar",
+    "january",
+    "march",
+    "jan 10",
+    "mar 15"
+  ];
+  const admissionDocsKeywords = [
+    "document",
+    "documents",
+    "docs",
+    "certificate",
+    "certificates",
+    "marksheet",
+    "mark sheet",
+    "photo",
+    "photos",
+    "id",
+    "aadhaar",
+    "aadhar",
+    "tc",
+    "transfer certificate",
+    "community certificate",
+    "income certificate",
+    "passport size"
+  ];
+  const admissionContactKeywords = [
+    "contact",
+    "email",
+    "mail",
+    "phone",
+    "number",
+    "call",
+    "admissions desk",
+    "admissions@college.com",
+    "helpdesk",
+    "support"
+  ];
 
   /* 🔥 BOT DATA */
     const botData = {
@@ -513,6 +616,18 @@ export default function Chat() {
       
       aboutbot: `I am Noah 🤖, designed to help students and parents with information about P.K.R.Arts College for Women. 
 I can provide details about courses, departments, faculty, placements, sports, hostel, library, and more.`,
+
+      admissions: `🎓 Admissions
+- Eligibility: 12th Pass / Equivalent
+- Application Fee: INR 500
+- Important Dates: Jan 10 - Mar 15
+- Documents: Marksheet, ID, Photo
+- Contact: admissions@college.com`,
+      admissionsEligibility: `🎯 Eligibility: 12th Pass / Equivalent`,
+      admissionsFee: `💰 Application Fee: INR 500`,
+      admissionsDates: `🗓️ Important Dates: Jan 10 - Mar 15`,
+      admissionsDocs: `🧾 Documents needed: Marksheet, ID, Photo`,
+      admissionsContact: `📧 Admissions Desk: admissions@college.com`,
 
       address: `🏫 PKR Arts College for Women
 📍 Address:
@@ -1523,6 +1638,26 @@ setMessages(prev => [...prev, userMsg]);
         botReply = "You're most welcome 🤗✨";
       }
 
+      // Admissions (only when asked about it)
+      else if (
+        includesAny(userText, admissionKeywords) ||
+        includesAny(userText, admissionEligibilityKeywords) // allow bare eligibility queries
+      ) {
+        if (includesAny(userText, admissionEligibilityKeywords)) {
+          botReply = botData.admissionsEligibility;
+        } else if (includesAny(userText, admissionFeeKeywords)) {
+          botReply = botData.admissionsFee;
+        } else if (includesAny(userText, admissionDateKeywords)) {
+          botReply = botData.admissionsDates;
+        } else if (includesAny(userText, admissionDocsKeywords)) {
+          botReply = botData.admissionsDocs;
+        } else if (includesAny(userText, admissionContactKeywords)) {
+          botReply = botData.admissionsContact;
+        } else {
+          botReply = botData.admissions;
+        }
+      }
+
       // 🌟 Appreciation
       else if (appreciationWords.some(word => userText.includes(word))) {
         botReply = "Thank you so much 🥰🌸 Happy to help!";
@@ -2481,12 +2616,19 @@ else if (
   botReply = botData.aboutbot;
 }
 
+else if (
+        includesAny(userText, admissionKeywords) &&
+        includesAny(userText, admissionFeeKeywords)
+      ) {
+        botReply = botData.admissionsFee;
+      }
+
 else if(
         userText.includes("fees") ||
         userText.includes("fee") ||
         userText.includes("structure")
       ){
-        let foundCourse = Object.keys(botData.fees).find(course =>
+        const foundCourse = Object.keys(botData.fees).find(course =>
           userText.includes(course)
         );
 
@@ -2494,8 +2636,12 @@ else if(
     // Specific course fee
     botReply = botData.fees[foundCourse as keyof typeof botData.fees];
   }
+  else if (includesAny(userText, admissionKeywords)) {
+    // Generic fee asked in admission context -> give admission fee
+    botReply = botData.admissionsFee;
+  }
   else{
-    // Show ALL fees
+    // Show ALL course fees
     botReply = Object.entries(botData.fees)
       .filter(([key]) => key !== "otherFees")
       .map(([key, value]) => value)
