@@ -76,7 +76,7 @@ export default function ClickNest() {
           activeOpacity={0.85}
         >
           <View style={[styles.accentBar, { backgroundColor: "#B26BFF" }]} />
-          <Text style={styles.actionText}>NSS / YRC</Text>
+          <Text style={styles.actionText}>🌿 🤝 NSS / YRC</Text>
         </TouchableOpacity>
       </ScrollView>
     </LinearGradient>

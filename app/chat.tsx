@@ -1,22 +1,22 @@
+import { Ionicons } from "@expo/vector-icons";
+import { Audio } from "expo-av";
+import { LinearGradient } from "expo-linear-gradient";
+import { useLocalSearchParams } from "expo-router";
+import * as Speech from "expo-speech";
+import { useEffect, useRef, useState } from "react";
 import {
-  View,
+  AppState,
+  FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  Image,
-  Linking,
-  AppState
+  View
 } from "react-native";
-import { Audio } from "expo-av";
-import * as Speech from "expo-speech";
-import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
-import { useLocalSearchParams } from "expo-router";
 
 const removeEmojis = (text: string) => {
   return text.replace(
@@ -505,20 +505,17 @@ export default function Chat() {
   const admissionKeywords = [
     "admission",
     "admissions",
-    "admision",
-    "admsn",
     "admit",
     "enroll",
     "enrol",
-    "enrolll",
-    "entroll",
-    "entrol",
     "enrollment",
-    "enrolment",
     "apply",
     "application",
     "application form",
     "seat",
+    "eligibility",
+    "Eligibility",
+    "eligibilities",
     "joining",
     "join",
     "join college",
@@ -535,10 +532,6 @@ export default function Chat() {
   const admissionEligibilityKeywords = [
     "eligibility",
     "eligible",
-    "eligiblity",
-    "eligiblitiy",
-    "eligability",
-    "eligable",
     "qualification",
     "criteria",
     "cutoff",
@@ -1639,10 +1632,7 @@ setMessages(prev => [...prev, userMsg]);
       }
 
       // Admissions (only when asked about it)
-      else if (
-        includesAny(userText, admissionKeywords) ||
-        includesAny(userText, admissionEligibilityKeywords) // allow bare eligibility queries
-      ) {
+      else if (includesAny(userText, admissionKeywords)) {
         if (includesAny(userText, admissionEligibilityKeywords)) {
           botReply = botData.admissionsEligibility;
         } else if (includesAny(userText, admissionFeeKeywords)) {
@@ -2616,19 +2606,12 @@ else if (
   botReply = botData.aboutbot;
 }
 
-else if (
-        includesAny(userText, admissionKeywords) &&
-        includesAny(userText, admissionFeeKeywords)
-      ) {
-        botReply = botData.admissionsFee;
-      }
-
 else if(
         userText.includes("fees") ||
         userText.includes("fee") ||
         userText.includes("structure")
       ){
-        const foundCourse = Object.keys(botData.fees).find(course =>
+        let foundCourse = Object.keys(botData.fees).find(course =>
           userText.includes(course)
         );
 
@@ -2636,12 +2619,8 @@ else if(
     // Specific course fee
     botReply = botData.fees[foundCourse as keyof typeof botData.fees];
   }
-  else if (includesAny(userText, admissionKeywords)) {
-    // Generic fee asked in admission context -> give admission fee
-    botReply = botData.admissionsFee;
-  }
   else{
-    // Show ALL course fees
+    // Show ALL fees
     botReply = Object.entries(botData.fees)
       .filter(([key]) => key !== "otherFees")
       .map(([key, value]) => value)
@@ -3065,4 +3044,4 @@ const styles = StyleSheet.create({
     fontWeight:"bold",
     fontSize:17
   }
-});
+});  

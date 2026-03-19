@@ -15,7 +15,7 @@ export default function YrcPage() {
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Text style={styles.title}>Youth Red Cross (YRC)</Text>
+          <Text style={styles.title}>❤️ Youth Red Cross (YRC)</Text>
           <Text style={styles.sub}>First-aid, safety, and humanitarian initiatives.</Text>
         </View>
 
