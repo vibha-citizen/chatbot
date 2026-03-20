@@ -615,7 +615,8 @@ I can provide details about courses, departments, faculty, placements, sports, h
 - Application Fee: INR 500
 - Important Dates: Jan 10 - Mar 15
 - Documents: Marksheet, ID, Photo
-- Contact: admissions@college.com`,
+- Contact: admissions@college.com
+- Apply online: https://forms.gle/8mT7WGgbs3biXwEk6`,
       admissionsEligibility: `🎯 Eligibility: 12th Pass / Equivalent`,
       admissionsFee: `💰 Application Fee: INR 500`,
       admissionsDates: `🗓️ Important Dates: Jan 10 - Mar 15`,
@@ -2799,6 +2800,17 @@ setMessages(prev => [...prev, botMsg]);
           </Text>
         </TouchableOpacity>
       )}
+      {item.text.includes("forms.gle/8mT7WGgbs3biXwEk6") && (
+        <TouchableOpacity
+          onPress={() => Linking.openURL("https://forms.gle/8mT7WGgbs3biXwEk6")}
+          style={{ marginTop: 8 }}
+        >
+          <Text style={{color:"#8ED0FF", fontWeight:"700"}}>
+            📝 Open Admission Form
+          </Text>
+        </TouchableOpacity>
+      )}
+
 
     </View>
   )}
@@ -3044,4 +3056,4 @@ const styles = StyleSheet.create({
     fontWeight:"bold",
     fontSize:17
   }
-});  
+});
