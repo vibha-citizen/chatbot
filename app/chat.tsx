@@ -25,6 +25,19 @@ const removeEmojis = (text: string) => {
   );
 };
 
+const formatForSpeech = (text: string) => {
+  if (!text) return "";
+  // Remove emojis first
+  let cleaned = removeEmojis(text);
+  // Replace arrows and symbols that get spelled out
+  cleaned = cleaned.replace(/[→➔➜➡↠⇨⇾]/g, " to ");
+  cleaned = cleaned.replace(/[₹]/g, " rupees ");
+  cleaned = cleaned.replace(/[•▪◦]/g, " ");
+  // Strip repeated spaces
+  cleaned = cleaned.replace(/\s+/g, " ").trim();
+  return cleaned;
+};
+
 type AppLanguage = "en" | "ta";
 
 const DEFAULT_ENGLISH_FALLBACK = "Sorry, I didn't understand.";
@@ -76,6 +89,44 @@ const tokenizeForRag = (value: string): string[] => {
 };
 
 const includesAny = (text: string, list: string[]): boolean => list.some(word => text.includes(word));
+
+// Map normalized variants to fee course keys
+const feeCourseAliases: Record<string, string[]> = {
+  // UG
+  "ba tamil": ["ba tamil", "b a tamil", "tamil", "tamil fees"],
+  "ba english": ["ba english", "b a english", "english", "english fees"],
+  bba: ["bba", "b b a"],
+  bcom: ["bcom", "b com", "b.com"],
+  "bcom pa": ["bcom pa", "b com pa", "professional accounting", "pa"],
+  "bcom ca": ["bcom ca", "b com ca", "computer applications", "ca"],
+  "bcom it": ["bcom it", "b com it", "information technology", "it commerce"],
+  "bsc cs": ["bsc cs", "b sc cs", "b.sc cs", "computer science"],
+  "bsc it": ["bsc it", "b sc it", "information technology degree"],
+  "bsc ai ml": ["bsc ai ml", "b sc ai ml", "ai ml", "artificial intelligence", "machine learning"],
+  bca: ["bca", "b c a"],
+  "bsc maths": ["bsc maths", "b sc maths", "bsc mathematics", "b sc mathematics", "maths"],
+  "bsc physics": ["bsc physics", "b sc physics", "physics"],
+  "bsc cs cyber security": ["cyber security", "bsc cyber security", "b sc cyber security", "cs cyber security"],
+  // PG
+  "ma tamil": ["ma tamil", "m a tamil", "pg tamil"],
+  "ma english": ["ma english", "m a english", "pg english"],
+  "msc maths": ["msc maths", "m sc maths", "msc mathematics", "m sc mathematics"],
+  "msc physics": ["msc physics", "m sc physics"],
+  mca: ["mca", "m c a"],
+  mcom: ["mcom", "m com", "m.com"],
+  mba: ["mba", "m b a"],
+};
+
+const findCourseFeeKey = (text: string): string | null => {
+  const norm = normalizeForRag(text);
+  if (!norm) return null;
+  for (const [key, variants] of Object.entries(feeCourseAliases)) {
+    if (variants.some(variant => norm.includes(variant))) {
+      return key;
+    }
+  }
+  return null;
+};
 
 const buildRagSections = (data: Record<string, any>): RagSection[] => {
   const sections: RagSection[] = [];
@@ -419,24 +470,32 @@ export default function Chat() {
   const skipNextAutoSpeakRef = useRef(false);
   const hasMountedRef = useRef(false);
   const ragSectionsRef = useRef<RagSection[] | null>(null);
+  const lastSpokenRef = useRef<number | null>(null);
 
   const speakText = (text: string, language: AppLanguage = "en") => {
     if (!text) return;
 
-    const cleanText = removeEmojis(text);
+    const cleanText = formatForSpeech(text);
     const speechLanguage = language === "ta" ? "ta-IN" : "en-US";
     
   try {
     Speech.stop();
     Speech.speak(cleanText, {
       language: speechLanguage,
-      rate: 0.95,
-      pitch: 1.0,
+      rate: 0.98,
+      pitch: 1.02,
     });
   } catch (e) {
     console.log("TTS error", e);
   }
 };
+
+  const handleSpeak = (text: string) => {
+    if (!text) return;
+    lastSpokenRef.current = Date.now();
+    Speech.stop();
+    speakText(text, detectInputLanguage(text));
+  };
 
   useEffect(() => {
     return () => {
@@ -484,18 +543,7 @@ export default function Chat() {
   useEffect(() => {
     if (!hasMountedRef.current) {
       hasMountedRef.current = true;
-      return;
     }
-
-    const lastMessage = messages[messages.length - 1];
-    if (!lastMessage || lastMessage.sender !== "bot") return;
-
-    if (skipNextAutoSpeakRef.current) {
-      skipNextAutoSpeakRef.current = false;
-      return;
-    }
-
-    speakText(lastMessage.text, detectInputLanguage(lastMessage.text));
   }, [messages]);
 
   // 🔹 Intent word lists
@@ -1787,6 +1835,27 @@ setMessages(prev => [...prev, userMsg]);
         botReply = botData.mission;
       }
 
+      /* ===== Fees (prioritize before course descriptions) ===== */
+      else if (
+        userText.includes("fees") ||
+        userText.includes("fee") ||
+        userText.includes("structure") ||
+        userText.includes("annual fee")
+      ) {
+        const matchedCourse = findCourseFeeKey(userText);
+
+        if (matchedCourse) {
+          botReply = botData.fees[matchedCourse as keyof typeof botData.fees];
+        } else {
+          botReply = Object.entries(botData.fees)
+            .filter(([key]) => key !== "otherFees")
+            .map(([, value]) => value)
+            .join("\n\n");
+
+          botReply += "\n\n" + botData.fees.otherFees;
+        }
+      }
+
       /* ================= COURSES ================= */
 
       else if(userText.includes("batamil")||
@@ -2607,29 +2676,6 @@ else if (
   botReply = botData.aboutbot;
 }
 
-else if(
-        userText.includes("fees") ||
-        userText.includes("fee") ||
-        userText.includes("structure")
-      ){
-        let foundCourse = Object.keys(botData.fees).find(course =>
-          userText.includes(course)
-        );
-
-  if(foundCourse){
-    // Specific course fee
-    botReply = botData.fees[foundCourse as keyof typeof botData.fees];
-  }
-  else{
-    // Show ALL fees
-    botReply = Object.entries(botData.fees)
-      .filter(([key]) => key !== "otherFees")
-      .map(([key, value]) => value)
-      .join("\n\n");
-
-    botReply += "\n\n" + botData.fees.otherFees;
-  }
-}
       let modelAudioUri: string | null = null;
       if (botReply === defaultFallback) {
         if (!ragSectionsRef.current) {
@@ -2769,6 +2815,16 @@ setMessages(prev => [...prev, botMsg]);
       ]}>
         {item.text}
       </Text>
+      {item.sender === "bot" && (
+        <TouchableOpacity
+          style={styles.audioBtn}
+          onPress={() => handleSpeak(item.text)}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="volume-high" size={18} color="#4A0F99" />
+          <Text style={styles.audioBtnText}>Play voice</Text>
+        </TouchableOpacity>
+      )}
       {(() => {
         const isFounderResponse = item.text === botData.establishedBy;
         return item.images?.map((img, index) => (
@@ -2992,6 +3048,26 @@ const styles = StyleSheet.create({
     fontSize:20,
     fontWeight:"500",
     color:"#33115E"
+  },
+
+  audioBtn:{
+    marginTop:10,
+    alignSelf:"flex-start",
+    flexDirection:"row",
+    alignItems:"center",
+    paddingHorizontal:10,
+    paddingVertical:6,
+    borderRadius:12,
+    backgroundColor:"rgba(77,45,128,0.1)",
+    borderWidth:1,
+    borderColor:"rgba(77,45,128,0.18)"
+  },
+
+  audioBtnText:{
+    marginLeft:6,
+    color:"#4A0F99",
+    fontWeight:"700",
+    fontSize:13
   },
 
   inputContainer:{
