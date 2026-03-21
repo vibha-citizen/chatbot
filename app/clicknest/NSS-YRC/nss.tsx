@@ -13,7 +13,7 @@ export default function NssPage() {
     >
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
-          <Text style={styles.title}>National Service Scheme (NSS)</Text>
+          <Text style={styles.title}>🌿 National Service Scheme (NSS)</Text>
           <Text style={styles.sub}>Volunteer drives, outreach, and impact snapshots.</Text>
         </View>
 

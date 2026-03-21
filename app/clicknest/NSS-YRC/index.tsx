@@ -22,7 +22,7 @@ export default function NssYrcMenu() {
         activeOpacity={0.9}
         onPress={() => router.push("/clicknest/NSS-YRC/nss")}
       >
-        <Text style={styles.cardTitle}>National Service Scheme</Text>
+        <Text style={styles.cardTitle}>🌿 National Service Scheme</Text>
         <Text style={styles.cardText}>Volunteer drives, camps, and social outreach.</Text>
       </TouchableOpacity>
 
@@ -31,7 +31,7 @@ export default function NssYrcMenu() {
         activeOpacity={0.9}
         onPress={() => router.push("/clicknest/NSS-YRC/yrc")}
       >
-        <Text style={styles.cardTitle}>Youth Red Cross</Text>
+        <Text style={styles.cardTitle}>✚ Youth Red Cross</Text>
         <Text style={styles.cardText}>First-aid training, blood drives, and safety rallies.</Text>
       </TouchableOpacity>
     </LinearGradient>
