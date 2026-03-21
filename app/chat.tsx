@@ -482,8 +482,9 @@ export default function Chat() {
     Speech.stop();
     Speech.speak(cleanText, {
       language: speechLanguage,
-      rate: 0.98,
-      pitch: 1.02,
+      rate: 0.85,   // slower for easy understanding
+      pitch: 1.0,   // neutral, clearer articulation
+      volume: 1.0,
     });
   } catch (e) {
     console.log("TTS error", e);
@@ -2265,10 +2266,7 @@ else if(
       id: Date.now() + 1,
       text: botData.placement,
       sender: "bot",
-      images:[
-         require("../assets/images/placement1.png"),
-         require("../assets/images/placement2.png")
-      ]
+      images:[]
     }
   ]);
   return;
@@ -2776,7 +2774,8 @@ setMessages(prev => [...prev, botMsg]);
   return (
     <KeyboardAvoidingView
       style={{flex:1}}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      behavior="padding"
+      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
     >
       <LinearGradient
         colors={["#F4EDFF", "#EDE1FF", "#E8D9FF", "#E2D0FF"]}
@@ -2800,7 +2799,7 @@ setMessages(prev => [...prev, botMsg]);
   data={messages}
   keyExtractor={(item)=>item.id.toString()}
   style={styles.chatList}
-  contentContainerStyle={{paddingHorizontal:18, paddingBottom:16}}
+  contentContainerStyle={{paddingHorizontal:18, paddingBottom:80}}
   renderItem={({item}) => (
     <View style={[
       styles.messageBubble,
@@ -2870,7 +2869,7 @@ setMessages(prev => [...prev, botMsg]);
 
     </View>
   )}
-/>
+  />
         <View style={styles.inputContainer}>
           <TextInput
             value={input}
@@ -2908,6 +2907,7 @@ setMessages(prev => [...prev, botMsg]);
         </View>
 
       </LinearGradient>
+
     </KeyboardAvoidingView>
   );
 }
@@ -3132,4 +3132,4 @@ const styles = StyleSheet.create({
     fontWeight:"bold",
     fontSize:17
   }
-});
+}); 
