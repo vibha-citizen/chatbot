@@ -12,7 +12,7 @@ export default function Departments() {
     { name: "Department of Physics", route: "/clicknest/departments/physics" },
     { name: "Department of CS", route: "/clicknest/departments/cs" },
     { name: "Department of Commerce", route: "/clicknest/departments/commerce" },
-    { name: "Placement", route: "/clicknest/departments/placement" },
+    { name: "Department of Placement", route: "/clicknest/departments/placement" },
   ];
 
   return (
@@ -30,6 +30,8 @@ export default function Departments() {
             activeOpacity={0.86}
             onPress={() => router.push({ pathname: item.route as any })}
           >
+            <Text style={styles.text}>{item.name}</Text>
+            <Text style={styles.chev}>›</Text>
           </TouchableOpacity>
         )}
       />
@@ -54,13 +56,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   card: {
-    backgroundColor: "rgba(255,255,255,0.78)",
+    backgroundColor: "#FFFFFF",
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 16,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: "rgba(148,95,255,0.2)",
+    borderColor: "#D9C7FF",
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",

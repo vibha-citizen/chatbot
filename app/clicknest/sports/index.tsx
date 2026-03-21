@@ -9,9 +9,6 @@ export default function SportsIndex() {
     { name: "Kabaddi", route: "kabaddi", tone: "#7C3AED" },
     { name: "Volleyball", route: "volleyball", tone: "#8B5CF6" },
     { name: "Hockey", route: "hockey", tone: "#6D28D9" },
-    { name: "Handball", route: "handball", tone: "#9333EA" },
-    { name: "Football", route: "football", tone: "#7E22CE" },
-    { name: "Badminton", route: "badminton", tone: "#A855F7" },
   ];
 
   return (
@@ -40,9 +37,9 @@ export default function SportsIndex() {
               onPress={() => router.push(`/clicknest/sports/${sport.route}` as any)}
               activeOpacity={0.86}
             >
-              <View style={[styles.tileDot, { backgroundColor: sport.tone }]} />
+              <View style={[styles.tileAccent, { backgroundColor: sport.tone }]} />
               <Text style={styles.tileTitle}>{sport.name}</Text>
-              <Text style={styles.tileHint}>Open</Text>
+              <Text style={styles.tileHint}>Tap to open gallery</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -109,20 +106,18 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
+    flexDirection: "column",
   },
   tile: {
-    width: "48.3%",
-    minHeight: 120,
-    borderRadius: 16,
+    width: "100%",
+    minHeight: 150,
+    borderRadius: 20,
     backgroundColor: "rgba(255,255,255,0.78)",
     borderWidth: 1,
     borderColor: "rgba(146,95,255,0.22)",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    marginBottom: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginBottom: 16,
     shadowColor: "#8B5CF6",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.16,
@@ -133,22 +128,22 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   tileDrop: {
-    marginTop: 8,
+    marginTop: 0,
   },
-  tileDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginBottom: 12,
+  tileAccent: {
+    width: 54,
+    height: 6,
+    borderRadius: 999,
+    marginBottom: 14,
   },
   tileTitle: {
-    fontSize: 19,
+    fontSize: 22,
     fontWeight: "800",
     color: "#51249F",
   },
   tileHint: {
-    marginTop: 14,
-    fontSize: 13,
+    marginTop: 18,
+    fontSize: 15,
     color: "#7E63B5",
     fontWeight: "600",
   },
