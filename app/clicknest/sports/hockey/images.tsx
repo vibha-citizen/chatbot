@@ -1,4 +1,4 @@
-import { Text, StyleSheet, ScrollView, Image, View } from "react-native";
+import { Text, StyleSheet, ScrollView, Image, View, ImageBackground } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
 export default function ScreenImages() {
@@ -14,7 +14,14 @@ export default function ScreenImages() {
 
         {images.map((img, index) => (
           <View key={index} style={styles.imageCard}>
-            <Image source={img} style={styles.image} resizeMode="cover" />
+            <ImageBackground
+              source={img}
+              style={styles.imageBg}
+              imageStyle={styles.imageBgInner}
+              blurRadius={12}
+            >
+              <Image source={img} style={styles.imageFull} resizeMode="contain" />
+            </ImageBackground>
           </View>
         ))}
       </ScrollView>
@@ -40,9 +47,21 @@ const styles = StyleSheet.create({
     padding: 8,
     marginBottom: 12,
   },
-  image: {
+  imageBg: {
     width: "100%",
     height: 220,
     borderRadius: 12,
+    overflow: "hidden",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  imageBgInner: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 12,
+  },
+  imageFull: {
+    width: "94%",
+    height: "94%",
   },
 });
