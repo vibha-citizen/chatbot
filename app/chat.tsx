@@ -493,9 +493,17 @@ export default function Chat() {
 
   const handleSpeak = (text: string) => {
     if (!text) return;
+
+    // For announcements with links (e.g., admissions), avoid reading the URL aloud.
+    // Keep only content before "Apply online" and strip any http/https links.
+    const withoutApplyLine = text.split(/apply online:/i)[0] || text;
+    const sanitized = withoutApplyLine.replace(/https?:\/\/\S+/gi, "").trim();
+
+    if (!sanitized) return;
+
     lastSpokenRef.current = Date.now();
     Speech.stop();
-    speakText(text, detectInputLanguage(text));
+    speakText(sanitized, detectInputLanguage(sanitized));
   };
 
   useEffect(() => {
@@ -2774,7 +2782,7 @@ setMessages(prev => [...prev, botMsg]);
   return (
     <KeyboardAvoidingView
       style={{flex:1}}
-      behavior="padding"
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
     >
       <LinearGradient
@@ -2796,80 +2804,82 @@ setMessages(prev => [...prev, botMsg]);
         </View>
 
         <FlatList
-  data={messages}
-  keyExtractor={(item)=>item.id.toString()}
-  style={styles.chatList}
-  contentContainerStyle={{paddingHorizontal:18, paddingBottom:80}}
-  renderItem={({item}) => (
-    <View style={[
-      styles.messageBubble,
-      item.sender === "user"
-        ? styles.userBubble
-        : styles.botBubble
-    ]}>
+          data={messages}
+          keyExtractor={item => item.id.toString()}
+          style={styles.chatList}
+          contentContainerStyle={{ paddingHorizontal: 18, paddingBottom: 80 }}
+          renderItem={({ item }) => {
+            const isFounderResponse = item.text === botData.establishedBy;
 
-      <Text style={[
-        styles.messageText,
-        item.sender === "user" && {color:"white"}
-      ]}>
-        {item.text}
-      </Text>
-      {item.sender === "bot" && (
-        <TouchableOpacity
-          style={styles.audioBtn}
-          onPress={() => handleSpeak(item.text)}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="volume-high" size={18} color="#4A0F99" />
-          <Text style={styles.audioBtnText}>Play voice</Text>
-        </TouchableOpacity>
-      )}
-      {(() => {
-        const isFounderResponse = item.text === botData.establishedBy;
-        return item.images?.map((img, index) => (
-          <Image
-            key={index}
-            source={img}
-            style={{
-              width: 200,
-              height: isFounderResponse ? 240 : 130,
-              marginTop: 10,
-              borderRadius: 10
-            }}
-            resizeMode={isFounderResponse ? "contain" : "cover"}
-          />
-        ));
-      })()}
-     
-      {/* 🔥 Google Map Link */}
-      {item.text.includes("Tap below to open in Google Maps") && (
-        <TouchableOpacity
-          onPress={() =>
-            Linking.openURL(
-              "https://www.google.com/maps/search/?api=1&query=PKR+Arts+College+for+Women+Gobichettipalayam"
-            )
-          }
-        >
-          <Text style={{color:"#8ED0FF", marginTop:8}}>
-            📍 Open in Google Maps
-          </Text>
-        </TouchableOpacity>
-      )}
-      {item.text.includes("forms.gle/8mT7WGgbs3biXwEk6") && (
-        <TouchableOpacity
-          onPress={() => Linking.openURL("https://forms.gle/8mT7WGgbs3biXwEk6")}
-          style={{ marginTop: 8 }}
-        >
-          <Text style={{color:"#8ED0FF", fontWeight:"700"}}>
-            📝 Open Admission Form
-          </Text>
-        </TouchableOpacity>
-      )}
+            return (
+              <View
+                style={[
+                  styles.messageBubble,
+                  item.sender === "user" ? styles.userBubble : styles.botBubble,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.messageText,
+                    item.sender === "user" && { color: "white" },
+                  ]}
+                >
+                  {item.text}
+                </Text>
 
+                {item.sender === "bot" && (
+                  <TouchableOpacity
+                    style={styles.audioBtn}
+                    onPress={() => handleSpeak(item.text)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="volume-high" size={18} color="#4A0F99" />
+                    <Text style={styles.audioBtnText}>Play voice</Text>
+                  </TouchableOpacity>
+                )}
 
-    </View>
-  )}
-  />
+                {item.images?.map((img, index) => (
+                  <Image
+                    key={index}
+                    source={img}
+                    style={{
+                      width: 200,
+                      height: isFounderResponse ? 240 : 130,
+                      marginTop: 10,
+                      borderRadius: 10,
+                    }}
+                    resizeMode={isFounderResponse ? "contain" : "cover"}
+                  />
+                ))}
+
+                {/* 🔥 Google Map Link */}
+                {item.text.includes("Tap below to open in Google Maps") && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      Linking.openURL(
+                        "https://www.google.com/maps/search/?api=1&query=PKR+Arts+College+for+Women+Gobichettipalayam"
+                      )
+                    }
+                  >
+                    <Text style={{ color: "#8ED0FF", marginTop: 8 }}>
+                      📍 Open in Google Maps
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {item.text.includes("forms.gle/8mT7WGgbs3biXwEk6") && (
+                  <TouchableOpacity
+                    onPress={() => Linking.openURL("https://forms.gle/8mT7WGgbs3biXwEk6")}
+                    style={{ marginTop: 8 }}
+                  >
+                    <Text style={{ color: "#8ED0FF", fontWeight: "700" }}>
+                      📝 Open Admission Form
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            );
+          }}
+        />
         <View style={styles.inputContainer}>
           <TextInput
             value={input}
