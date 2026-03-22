@@ -1,6 +1,19 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { ScrollView, StyleSheet, Text, View, Image } from "react-native";
 
+const campusImages = [
+  {
+    title: "Campus Library View",
+    description: "Quiet reading space inside the campus library.",
+    source: require("../../assets/images/library1.png"),
+  },
+  {
+    title: "Library Study Area",
+    description: "Another library corner that highlights the campus learning environment.",
+    source: require("../../assets/images/library2.png"),
+  },
+];
+
 export default function Gallery() {
   return (
     <LinearGradient
@@ -14,17 +27,18 @@ export default function Gallery() {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.hero}>
-          <Text style={styles.title}>Gallery</Text>
-          <Text style={styles.sub}>Add event photos, carousels, and campus moments here.</Text>
+          <Text style={styles.title}>Campus Images</Text>
+          <Text style={styles.sub}>Library and campus life photos collected inside ClickNest.</Text>
         </View>
 
-        <View style={styles.placeholder}>
-          <Text style={styles.placeholderText}>Image slots go here</Text>
-          <Image
-            source={{ uri: "https://via.placeholder.com/320x180.png?text=Gallery+Item" }}
-            style={styles.image}
-          />
-        </View>
+        {campusImages.map((item, index) => (
+          <View key={item.title} style={styles.card}>
+            <Text style={styles.badge}>IMAGE {index + 1}</Text>
+            <Image source={item.source} style={styles.image} resizeMode="cover" />
+            <Text style={styles.cardTitle}>{item.title}</Text>
+            <Text style={styles.cardText}>{item.description}</Text>
+          </View>
+        ))}
       </ScrollView>
     </LinearGradient>
   );
@@ -49,7 +63,7 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 26, fontWeight: "900", color: "#4A1F8E", textAlign: "center" },
   sub: { textAlign: "center", color: "#6F4AAF", marginTop: 6, fontSize: 14, fontWeight: "600" },
-  placeholder: {
+  card: {
     backgroundColor: "rgba(255,255,255,0.9)",
     borderRadius: 16,
     borderWidth: 1,
@@ -63,6 +77,29 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
-  placeholderText: { fontSize: 14, color: "#6B52A3", marginBottom: 10 },
-  image: { width: "100%", height: 180, borderRadius: 12, backgroundColor: "#D9CCFF" },
+  badge: {
+    alignSelf: "flex-start",
+    backgroundColor: "#EEE5FF",
+    color: "#5C36A8",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    marginBottom: 12,
+  },
+  image: { width: "100%", height: 220, borderRadius: 12, backgroundColor: "#D9CCFF" },
+  cardTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#4A1F8E",
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  cardText: {
+    fontSize: 14,
+    color: "#6B52A3",
+    lineHeight: 20,
+  },
 });
