@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
+  Linking,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
@@ -62,6 +63,15 @@ export default function Enroll() {
               <Text style={styles.contactValue}>admissions@college.com</Text>
             </View>
           </View>
+
+          <TouchableOpacity
+            style={styles.applyBtn}
+            activeOpacity={0.9}
+            onPress={() => Linking.openURL("https://forms.gle/8mT7WGgbs3biXwEk6")}
+          >
+            <Text style={styles.applyText}>Apply Online</Text>
+            <Text style={styles.applySub}>Secure Google Form • quick submission</Text>
+          </TouchableOpacity>
         </ScrollView>
       </LinearGradient>
     </KeyboardAvoidingView>
@@ -186,5 +196,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#3B1B7F",
     fontWeight: "700",
+  },
+  applyBtn: {
+    marginTop: 10,
+    backgroundColor: "#5A1AFF",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    shadowColor: "#5A1AFF",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 8,
+  },
+  applyText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+  applySub: {
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 4,
   },
 });

@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Linking } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 
@@ -103,6 +103,16 @@ export default function Chatbot() {
           <LinearGradient colors={['#E9FFF3', '#D6FFE9']} style={styles.box}>
             <Text style={styles.boxLabel}>GameZone</Text>
             <Text style={styles.boxText}>Sports & scores</Text>
+          </LinearGradient>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => Linking.openURL("https://forms.gle/8mT7WGgbs3biXwEk6")}
+          style={styles.boxWrapper}
+        >
+          <LinearGradient colors={['#FFF4F0', '#FFE8E0']} style={styles.box}>
+            <Text style={styles.boxLabel}>Apply Online</Text>
+            <Text style={styles.boxText}>Admissions form</Text>
           </LinearGradient>
         </TouchableOpacity>
 
