@@ -1,9 +1,20 @@
 import { View, Text, StyleSheet, ScrollView, Image, Pressable } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
+import { useRouter } from "expo-router";
 
 export default function Campus() {
+  const router = useRouter();
   const [showImages, setShowImages] = useState(false);
+  const libraryImages = [
+    { key: "library11", src: require("../../assets/images/library11.jpeg"), label: "Library 1" },
+    { key: "library12", src: require("../../assets/images/library12.jpeg"), label: "Library 2" },
+  ];
+
+  const openFull = (key: string) => {
+    router.push({ pathname: "/clicknest/campus-full", params: { img: key } });
+  };
+
   return (
     <LinearGradient colors={["#F8F1FF", "#F0E5FF", "#E8DBFF"]} style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -22,8 +33,12 @@ export default function Campus() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.imageRow}
               >
-                <Image source={require("../../assets/images/library11.jpeg")} style={styles.image} />
-                <Image source={require("../../assets/images/library12.jpeg")} style={styles.image} />
+                {libraryImages.map(img => (
+                  <Pressable key={img.key} onPress={() => openFull(img.key)} style={styles.imageWrap}>
+                    <Image source={img.src} style={styles.image} />
+                    <Text style={styles.imageLabel}>{img.label}</Text>
+                  </Pressable>
+                ))}
               </ScrollView>
             ) : (
               <Pressable style={styles.reveal} onPress={() => setShowImages(true)}>
@@ -77,12 +92,19 @@ const styles = StyleSheet.create({
   mediaTitle: { fontSize: 16, fontWeight: "800", color: "#4A1F8E", marginBottom: 8 },
   mediaHint: { fontSize: 13, color: "#6B52A3" },
   imageRow: { gap: 10 },
+  imageWrap: { marginRight: 10, alignItems: "center" },
   image: {
     width: 150,
     height: 110,
     borderRadius: 10,
     marginRight: 10,
     backgroundColor: "#EFE7FF",
+  },
+  imageLabel: {
+    marginTop: 6,
+    color: "#4A1F8E",
+    fontWeight: "700",
+    fontSize: 12,
   },
   reveal: {
     marginTop: 6,

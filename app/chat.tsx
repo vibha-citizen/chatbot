@@ -90,6 +90,12 @@ const tokenizeForRag = (value: string): string[] => {
 
 const includesAny = (text: string, list: string[]): boolean => list.some(word => text.includes(word));
 
+// Match whole words to avoid substring collisions (e.g., "which" containing "hi").
+const includesWholeWord = (text: string, list: string[]): boolean => {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  return list.some(word => tokens.includes(word));
+};
+
 // Map normalized variants to fee course keys
 const feeCourseAliases: Record<string, string[]> = {
   // UG
@@ -657,6 +663,473 @@ export default function Chat() {
     "admissions@college.com",
     "helpdesk",
     "support"
+  ];
+
+  // Hostel FAQs
+  const hostelAvailabilityKeywords = [
+    "hostel available",
+    "hostel facility",
+    "hostel facilities",
+    "provide hostel",
+    "hostel facilities available",
+    "accommodation",
+    "stay in hostel",
+    "stay in college hostel",
+    "hostel compulsory",
+    "is hostel compulsory",
+    "college hostel"
+  ];
+  const hostelApplyKeywords = [
+    "apply for hostel",
+    "hostel admission process",
+    "get a hostel seat",
+    "eligible for hostel",
+    "when can i apply hostel",
+    "hostel seat"
+  ];
+  const hostelFeeKeywords = [
+    "hostel fee",
+    "hostel fees",
+    "hostel cost",
+    "hostel charges",
+    "hostel expensive"
+  ];
+  const hostelRoomTypeKeywords = [
+    "hostel rooms shared",
+    "students per room",
+    "hostel room private",
+    "type of rooms",
+    "hostel comfortable"
+  ];
+
+  // Transport
+  const transportAvailabilityKeywords = [
+    "transport available",
+    "bus facilities",
+    "college bus",
+    "travel facility",
+    "college transport"
+  ];
+  const transportRouteKeywords = [
+    "bus routes",
+    "route details",
+    "cover my area",
+    "multiple bus routes",
+    "know my route"
+  ];
+  const transportFeeKeywords = [
+    "transport fee",
+    "bus fee",
+    "transport charges",
+    "bus charges",
+    "transport free"
+  ];
+  const transportSafetyKeywords = [
+    "bus safe",
+    "bus monitored",
+    "staff in bus",
+    "buses punctual",
+    "transport reliable"
+  ];
+
+  // Rules & Discipline
+  const rulesDisciplineKeywords = [
+    "college rules",
+    "strict college",
+    "discipline policies",
+    "behavior rules",
+    "discipline"
+  ];
+  const dressCodeKeywords = [
+    "uniform compulsory",
+    "dress code",
+    "wear casual",
+    "uniform required"
+  ];
+  const mobileRulesKeywords = [
+    "mobile phones allowed",
+    "use phone",
+    "mobile usage",
+    "phone in class",
+    "phones restricted"
+  ];
+  const raggingKeywords = [
+    "ragging allowed",
+    "anti ragging",
+    "ragging occurs",
+    "ragging rules",
+    "ragging free"
+  ];
+
+  // Facilities
+  const libraryFacilityKeywords = [
+    "library available",
+    "college library",
+    "use library",
+    "books available",
+    "library well equipped"
+  ];
+  const labsFacilityKeywords = [
+    "labs available",
+    "computer labs",
+    "science labs",
+    "use lab facilities",
+    "labs modern"
+  ];
+  const wifiFacilityKeywords = [
+    "wifi available",
+    "campus internet",
+    "wifi free",
+    "use internet",
+    "wifi accessible"
+  ];
+  const canteenFacilityKeywords = [
+    "canteen",
+    "food available",
+    "canteen hygienic",
+    "food options",
+    "canteen affordable"
+  ];
+
+  // Certificates & office
+  const bonafideKeywords = [
+    "bonafide certificate",
+    "get bonafide",
+    "bonafide available",
+    "apply for bonafide",
+    "bonafide how long"
+  ];
+  const tcKeywords = [
+    "transfer certificate",
+    "get tc",
+    "tc issued",
+    "tc process",
+    "tc online"
+  ];
+  const completionKeywords = [
+    "course completion certificate",
+    "completion certificate",
+    "receive certificate",
+    "collect certificate",
+    "certificate issued after course"
+  ];
+  const officeKeywords = [
+    "college office",
+    "office timings",
+    "reach office",
+    "help desk",
+    "office queries"
+  ];
+
+  // Placement
+  const placementSupportKeywords = [
+    "placement available",
+    "placement support",
+    "campus placements",
+    "companies visit",
+    "job placement guaranteed",
+    "placement guarantee"
+  ];
+  const placementRateKeywords = [
+    "placement percentage",
+    "students get placed",
+    "placement rate",
+    "success rate of placements",
+    "most students get jobs"
+  ];
+  const placementCompaniesKeywords = [
+    "which companies visit",
+    "companies come for placement",
+    "it companies visiting",
+    "top companies recruit",
+    "company names placement"
+  ];
+  const placementSalaryKeywords = [
+    "average salary",
+    "salary expect",
+    "starting salary",
+    "package offered",
+    "highest salary offered"
+  ];
+
+  // Internship
+  const internshipAvailableKeywords = [
+    "internships available",
+    "provide internships",
+    "do internship during course",
+    "internship mandatory",
+    "internships part of curriculum"
+  ];
+  const internshipApplyKeywords = [
+    "apply for internship",
+    "find internship opportunities",
+    "college help internship",
+    "internships provided by college",
+    "apply internship on my own"
+  ];
+  const internshipPaidKeywords = [
+    "internships paid",
+    "internships provide stipend",
+    "internship free or paid",
+    "salary in internship",
+    "all internships paid"
+  ];
+  const internshipWhenKeywords = [
+    "when can i do internship",
+    "which year best for internship",
+    "first year internship",
+    "final year internship",
+    "internship after exams"
+  ];
+
+  // Exams & results
+  const examsScheduleKeywords = [
+    "semester exams conducted",
+    "exam schedule",
+    "exams start",
+    "how many exams",
+    "exams every semester"
+  ];
+  const marksCalcKeywords = [
+    "marks calculated",
+    "marking system",
+    "internal marks included",
+    "final score calculated",
+    "grading system"
+  ];
+  const revaluationKeywords = [
+    "apply for revaluation",
+    "rechecking available",
+    "how to apply revaluation",
+    "marks be increased",
+    "revaluation allowed"
+  ];
+  const resultsKeywords = [
+    "results published",
+    "check results",
+    "results online",
+    "see my marks",
+    "result notification"
+  ];
+
+  // Academics
+  const courseDurationKeywords = [
+    "how many semesters",
+    "course duration",
+    "how long ug course",
+    "how long pg course",
+    "how many years degree"
+  ];
+  const assignmentsKeywords = [
+    "assignments compulsory",
+    "homework",
+    "projects required",
+    "project mandatory",
+    "internal work"
+  ];
+  const practicalKeywords = [
+    "practical exams conducted",
+    "lab exams",
+    "practical important",
+    "practical marks included",
+    "lab exams conducted"
+  ];
+  const attendanceKeywords = [
+    "attendance important for exams",
+    "write exam without attendance",
+    "minimum attendance",
+    "allowed with low attendance",
+    "attendance compulsory for exams"
+  ];
+
+  // Real student questions
+  const tcRequirementKeywords = [
+    "join without transfer certificate",
+    "tc compulsory for admission",
+    "dont have tc",
+    "don t have tc",
+    "submit tc later",
+    "admission without tc"
+  ];
+  const courseChangeKeywords = [
+    "change course after joining",
+    "course change allowed",
+    "switch department",
+    "process to change course",
+    "easy to change course"
+  ];
+  const leaveKeywords = [
+    "take leave during semester",
+    "leave allowed in college",
+    "apply for leave",
+    "take long leave",
+    "medical leave allowed"
+  ];
+  const partTimeKeywords = [
+    "study and work part time",
+    "part time job allowed",
+    "work while studying",
+    "flexibility for working students",
+    "manage job and college"
+  ];
+
+  // Mixed course + fees
+  const courseFeesAllKeywords = [
+    "fees for all courses",
+    "full fee structure",
+    "all course fees",
+    "complete fee details",
+    "fees for every department"
+  ];
+  const cheapestCourseKeywords = [
+    "cheapest course",
+    "low fees course",
+    "affordable course",
+    "lowest fee course",
+    "course costs less",
+    "low fees",
+    "low fee",
+    "less fees",
+    "less fee",
+    "course has low fees",
+    "which course has low fees"
+  ];
+  const highestFeeCourseKeywords = [
+    "highest fee course",
+    "expensive course",
+    "most costly course",
+    "highest fees",
+    "high fee courses"
+  ];
+  const feeChangeKeywords = [
+    "fee same every year",
+    "fees increase yearly",
+    "fee hike",
+    "fees change every year",
+    "fees fixed"
+  ];
+
+  // Chatbot type questions
+  const courseGuideKeywords = [
+    "help me choose a course",
+    "which course is best",
+    "suggest a good course",
+    "what should i study",
+    "which degree is best"
+  ];
+  const admissionGuideKeywords2 = [
+    "guide me for admission",
+    "help me join this college",
+    "need admission help",
+    "assist me with application",
+    "guide me through admission"
+  ];
+  const chatbotIdentityKeywords = [
+    "are you a real person",
+    "is this a chatbot",
+    "who am i talking to",
+    "ai or human",
+    "are you automated"
+  ];
+  const humanSupportKeywords2 = [
+    "talk to a real person",
+    "human support",
+    "contact staff",
+    "speak with office",
+    "connect me to admin"
+  ];
+
+  // Error / confusion handling
+  const errorConfusedKeywords = [
+    "i dont understand",
+    "i don t understand",
+    "explain again",
+    "say it clearly",
+    "i am confused",
+    "what do you mean"
+  ];
+  const errorBetterKeywords = [
+    "not helpful",
+    "wrong answer",
+    "incorrect",
+    "better answer",
+    "not clear"
+  ];
+  const errorRephraseKeywords = [
+    "typed wrong",
+    "mistake in my question",
+    "ignore previous message",
+    "let me rephrase",
+    "asked incorrectly"
+  ];
+  const errorSpecificKeywords = [
+    "you didnt answer my question",
+    "you didn t answer my question",
+    "answer properly",
+    "give correct answer",
+    "be specific",
+    "need exact details"
+  ];
+
+  // Rule edge cases
+  const ruleLateKeywords = [
+    "come late to college",
+    "late entry allowed",
+    "what if i am late",
+    "enter after time",
+    "late coming rules"
+  ];
+  const ruleUniformFlexibleKeywords = [
+    "wear casual dress sometimes",
+    "uniform strict",
+    "skip uniform",
+    "exceptions uniform",
+    "dress code flexible"
+  ];
+  const ruleBunkKeywords = [
+    "bunk classes",
+    "skip class",
+    "bunk allowed",
+    "miss lectures",
+    "dont attend class",
+    "don t attend class"
+  ];
+  const rulePhoneSecretKeywords = [
+    "use phone secretly",
+    "use phone in class",
+    "phone allowed sometimes",
+    "use mobile for study",
+    "phone usage rules"
+  ];
+
+  // Advanced real-life queries
+  const advancedArrearsKeywords = [
+    "failed in one subject",
+    "have arrears",
+    "clear backlog",
+    "pass failed subject",
+    "supplementary exam available"
+  ];
+  const advancedIdCardKeywords = [
+    "lost my id card",
+    "get duplicate id card",
+    "replace my id",
+    "id is missing",
+    "id card reissue"
+  ];
+  const advancedMissedExamKeywords = [
+    "missed exam",
+    "write exam later",
+    "re exam possible",
+    "skip exam",
+    "retake exam"
+  ];
+  const advancedDiscontinueKeywords = [
+    "discontinue course",
+    "drop out",
+    "cancellation process",
+    "leave college",
+    "discontinue admission"
   ];
 
   /* 🔥 BOT DATA */
@@ -1438,6 +1911,11 @@ Audio-video recreational facilities and solar water heater systems are available
 The hostel ensures a 24-hour uninterrupted power supply through solar energy.
 Students are expected to maintain discipline, avoid wastage of food and water, and follow hostel rules strictly.`,
 
+  hostelAvailability: `Yes, hostel facilities are available but not compulsory.`,
+  hostelApply: `You can apply through the college office. Seats are limited and allotted based on availability.`,
+  hostelFeeShort: `Hostel fees vary. Please contact the college office for exact details.`,
+  hostelRooms: `Rooms are shared and well-maintained for students.`,
+
   hostelfacilities:` HOSTEL FACILITIES 
 
 🔹Comfortable Accommodation – Well-furnished rooms with beds, study tables, chairs, and storage facilities.
@@ -1490,6 +1968,90 @@ PG → ₹6000 / year `,
 
   MessFees :` MESS FEES DETAILS
 ₹2300 – ₹2800 / month.`,
+
+  // Transport
+  transportAvailability: `Yes, transport facilities are available.`,
+  transportRoutes: `Bus routes are available. Please contact the transport office.`,
+  transportFees: `Transport fees vary based on distance.`,
+  transportSafety: `Yes, buses are safe, monitored, and run with staff support.`,
+
+  // Rules & Discipline
+  rulesDiscipline: `The college follows strict discipline rules.`,
+  dressCode: `Yes, students must follow the dress code/uniform.`,
+  mobileRules: `Mobile phone usage is restricted inside campus.`,
+  raggingPolicy: `Ragging is strictly prohibited and punishable.`,
+
+  // Facilities
+  facilitiesLibrary: `Yes, the college has a well-equipped library.`,
+  facilitiesLabs: `Yes, labs (computer and science) are available.`,
+  facilitiesWifi: `Yes, limited WiFi access is available.`,
+  facilitiesCanteen: `Yes, a hygienic canteen is available.`,
+
+  // Certificates & Office
+  bonafide: `You can apply in the office. Bonafide will be issued within a few days.`,
+  transferCertificate: `TC can be obtained from the office as per rules.`,
+  completionCertificate: `Yes, course completion certificates are issued after course completion.`,
+  officeContact: `You can contact the college office during working hours for queries.`,
+
+  // Placement
+  placementSupport: `Yes, the college provides placement support, but jobs are based on performance.`,
+  placementRate: `Around 70–80% of students get placement opportunities.`,
+  placementCompanies: `Various IT and core companies visit the campus.`,
+  placementSalary: `Salary depends on the company and student performance.`,
+
+  // Internship
+  internshipAvailability: `Yes, internships are available for some courses.`,
+  internshipApply: `You can apply through college or independently.`,
+  internshipPaid: `Some internships are paid, others may be unpaid.`,
+  internshipWhen: `Internships are usually done during final year or semester breaks.`,
+
+  // Exams & results
+  examsSchedule: `Exams are conducted at the end of each semester.`,
+  marksCalculation: `Marks include internal and external assessments.`,
+  revaluation: `Yes, revaluation is available as per university rules.`,
+  resultsPublish: `Results are published online on the university website.`,
+
+  // Academics
+  courseDuration: `UG is 3 years, PG is 2 years.`,
+  assignments: `Yes, assignments and projects are compulsory.`,
+  practicals: `Yes, practical exams are conducted for relevant courses.`,
+  attendanceRule: `Yes, minimum attendance is required to write exams.`,
+
+  // Real student questions
+  tcRequirement: `TC is required, but temporary admission may be allowed.`,
+  courseChange: `Course change depends on seat availability and rules.`,
+  leavePolicy: `Yes, leave is allowed with proper permission.`,
+  partTime: `Yes, but attendance and academics must be maintained.`,
+
+  // Mixed course + fees
+  courseFeesAll: `Fees vary by course. Please ask for a specific course or check the full list provided earlier.`,
+  courseCheapest: `Courses like BA English and B.Sc Maths have lower fees compared to others.`,
+  courseHighest: `Courses like MBA and technical programs have higher fees.`,
+  feeChange: `Fees may change based on college policies.`,
+
+  // Chatbot type questions
+  courseGuide: `It depends on your interest, skills, and career goals.`,
+  admissionGuide2: `You can apply online or visit the college office for guidance.`,
+  chatbotIdentity: `I am a chatbot designed to help with your queries.`,
+  humanSupport2: `Yes, please contact the college office for further assistance.`,
+
+  // Error / confusion handling
+  errorConfused: `Sure, please ask your question again and I will help you clearly.`,
+  errorBetter: `Sorry for the confusion. Please ask again, I will provide a better answer.`,
+  errorRephrase: `No problem. Please ask your question again.`,
+  errorSpecific: `Please specify your question clearly, I will provide exact details.`,
+
+  // Rule edge cases
+  ruleLate: `Late entry is restricted and depends on college rules.`,
+  ruleUniform: `Uniform is compulsory and must be followed.`,
+  ruleBunk: `Attendance is compulsory. Shortage may affect exams.`,
+  rulePhone: `Mobile phone usage is restricted inside campus.`,
+
+  // Advanced real-life queries
+  advancedArrears: `Yes, you can clear arrears through supplementary exams.`,
+  advancedIdCard: `You can apply for a duplicate ID card through the office.`,
+  advancedMissedExam: `You may apply for supplementary exam as per rules.`,
+  advancedDiscontinue: `You can discontinue by submitting a request to the college office.`,
 
   library:`📚 PKR College Library Details
 
@@ -1680,12 +2242,12 @@ setMessages(prev => [...prev, userMsg]);
         userText.includes("staff list");
 
       // 👋 Greetings
-      if (greetings.some(word => userText.includes(word))) {
+      if (includesWholeWord(userText, greetings)) {
         botReply = "Hi 👋😊 How can I help you today?";
       }
 
       // 🙏 Thanks
-      else if (thanksWords.some(word => userText.includes(word))) {
+      else if (includesWholeWord(userText, thanksWords)) {
         botReply = "You're most welcome 🤗✨";
       }
 
@@ -1709,6 +2271,172 @@ setMessages(prev => [...prev, userMsg]);
       // 🌟 Appreciation
       else if (appreciationWords.some(word => userText.includes(word))) {
         botReply = "Thank you so much 🥰🌸 Happy to help!";
+      }
+
+      
+      // Hostel quick FAQs
+      else if (includesAny(userText, hostelAvailabilityKeywords)) {
+        botReply = botData.hostelAvailability;
+      } else if (includesAny(userText, hostelApplyKeywords)) {
+        botReply = botData.hostelApply;
+      } else if (includesAny(userText, hostelFeeKeywords)) {
+        botReply = botData.hostelFeeShort;
+      } else if (includesAny(userText, hostelRoomTypeKeywords)) {
+        botReply = botData.hostelRooms;
+      }
+
+      // Transport
+      else if (includesAny(userText, transportAvailabilityKeywords)) {
+        botReply = botData.transportAvailability;
+      } else if (includesAny(userText, transportRouteKeywords)) {
+        botReply = botData.transportRoutes;
+      } else if (includesAny(userText, transportFeeKeywords)) {
+        botReply = botData.transportFees;
+      } else if (includesAny(userText, transportSafetyKeywords)) {
+        botReply = botData.transportSafety;
+      }
+
+      // Rules & discipline
+      else if (includesAny(userText, rulesDisciplineKeywords)) {
+        botReply = botData.rulesDiscipline;
+      } else if (includesAny(userText, dressCodeKeywords)) {
+        botReply = botData.dressCode;
+      } else if (includesAny(userText, mobileRulesKeywords)) {
+        botReply = botData.mobileRules;
+      } else if (includesAny(userText, raggingKeywords)) {
+        botReply = botData.raggingPolicy;
+      }
+
+      // Facilities
+      else if (includesAny(userText, libraryFacilityKeywords)) {
+        botReply = botData.facilitiesLibrary;
+      } else if (includesAny(userText, labsFacilityKeywords)) {
+        botReply = botData.facilitiesLabs;
+      } else if (includesAny(userText, wifiFacilityKeywords)) {
+        botReply = botData.facilitiesWifi;
+      } else if (includesAny(userText, canteenFacilityKeywords)) {
+        botReply = botData.facilitiesCanteen;
+      }
+
+      // Certificates & office
+      else if (includesAny(userText, bonafideKeywords)) {
+        botReply = botData.bonafide;
+      } else if (includesAny(userText, tcKeywords)) {
+        botReply = botData.transferCertificate;
+      } else if (includesAny(userText, completionKeywords)) {
+        botReply = botData.completionCertificate;
+      } else if (includesAny(userText, officeKeywords)) {
+        botReply = botData.officeContact;
+      }
+
+      // Placement
+      else if (includesAny(userText, placementSupportKeywords)) {
+        botReply = botData.placementSupport;
+      } else if (includesAny(userText, placementRateKeywords)) {
+        botReply = botData.placementRate;
+      } else if (includesAny(userText, placementCompaniesKeywords)) {
+        botReply = botData.placementCompanies;
+      } else if (includesAny(userText, placementSalaryKeywords)) {
+        botReply = botData.placementSalary;
+      }
+
+      // Internship
+      else if (includesAny(userText, internshipAvailableKeywords)) {
+        botReply = botData.internshipAvailability;
+      } else if (includesAny(userText, internshipApplyKeywords)) {
+        botReply = botData.internshipApply;
+      } else if (includesAny(userText, internshipPaidKeywords)) {
+        botReply = botData.internshipPaid;
+      } else if (includesAny(userText, internshipWhenKeywords)) {
+        botReply = botData.internshipWhen;
+      }
+
+      // Exams & results
+      else if (includesAny(userText, examsScheduleKeywords)) {
+        botReply = botData.examsSchedule;
+      } else if (includesAny(userText, marksCalcKeywords)) {
+        botReply = botData.marksCalculation;
+      } else if (includesAny(userText, revaluationKeywords)) {
+        botReply = botData.revaluation;
+      } else if (includesAny(userText, resultsKeywords)) {
+        botReply = botData.resultsPublish;
+      }
+
+      // Academics
+      else if (includesAny(userText, courseDurationKeywords)) {
+        botReply = botData.courseDuration;
+      } else if (includesAny(userText, assignmentsKeywords)) {
+        botReply = botData.assignments;
+      } else if (includesAny(userText, practicalKeywords)) {
+        botReply = botData.practicals;
+      } else if (includesAny(userText, attendanceKeywords)) {
+        botReply = botData.attendanceRule;
+      }
+
+      // Real student questions
+      else if (includesAny(userText, tcRequirementKeywords)) {
+        botReply = botData.tcRequirement;
+      } else if (includesAny(userText, courseChangeKeywords)) {
+        botReply = botData.courseChange;
+      } else if (includesAny(userText, leaveKeywords)) {
+        botReply = botData.leavePolicy;
+      } else if (includesAny(userText, partTimeKeywords)) {
+        botReply = botData.partTime;
+      }
+
+      // Mixed course + fees
+      else if (includesAny(userText, courseFeesAllKeywords)) {
+        botReply = botData.courseFeesAll;
+      } else if (includesAny(userText, cheapestCourseKeywords)) {
+        botReply = botData.courseCheapest;
+      } else if (includesAny(userText, highestFeeCourseKeywords)) {
+        botReply = botData.courseHighest;
+      } else if (includesAny(userText, feeChangeKeywords)) {
+        botReply = botData.feeChange;
+      }
+
+      // Chatbot type questions
+      else if (includesAny(userText, courseGuideKeywords)) {
+        botReply = botData.courseGuide;
+      } else if (includesAny(userText, admissionGuideKeywords2)) {
+        botReply = botData.admissionGuide2;
+      } else if (includesAny(userText, chatbotIdentityKeywords)) {
+        botReply = botData.chatbotIdentity;
+      } else if (includesAny(userText, humanSupportKeywords2)) {
+        botReply = botData.humanSupport2;
+      }
+
+      // Error / confusion handling
+      else if (includesAny(userText, errorConfusedKeywords)) {
+        botReply = botData.errorConfused;
+      } else if (includesAny(userText, errorBetterKeywords)) {
+        botReply = botData.errorBetter;
+      } else if (includesAny(userText, errorRephraseKeywords)) {
+        botReply = botData.errorRephrase;
+      } else if (includesAny(userText, errorSpecificKeywords)) {
+        botReply = botData.errorSpecific;
+      }
+
+      // Rule edge cases
+      else if (includesAny(userText, ruleLateKeywords)) {
+        botReply = botData.ruleLate;
+      } else if (includesAny(userText, ruleUniformFlexibleKeywords)) {
+        botReply = botData.ruleUniform;
+      } else if (includesAny(userText, ruleBunkKeywords)) {
+        botReply = botData.ruleBunk;
+      } else if (includesAny(userText, rulePhoneSecretKeywords)) {
+        botReply = botData.rulePhone;
+      }
+
+      // Advanced real-life queries
+      else if (includesAny(userText, advancedArrearsKeywords)) {
+        botReply = botData.advancedArrears;
+      } else if (includesAny(userText, advancedIdCardKeywords)) {
+        botReply = botData.advancedIdCard;
+      } else if (includesAny(userText, advancedMissedExamKeywords)) {
+        botReply = botData.advancedMissedExam;
+      } else if (includesAny(userText, advancedDiscontinueKeywords)) {
+        botReply = botData.advancedDiscontinue;
       }
 
       else if(
